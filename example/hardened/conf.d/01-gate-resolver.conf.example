@@ -1,0 +1,16 @@
+# Resolver + TLS trust for the OIDC gate, needed ONLY when you run the gate
+# without the CrowdSec bouncer. CrowdSec's crowdsec_nginx.conf already sets all
+# three, and nginx rejects a duplicate, so do NOT enable this file while
+# CROWDSEC_LAPI_KEY is set.
+#
+# To use (gate-only, no CrowdSec): copy to 01-gate-resolver.conf and mount it,
+# then reload.
+
+# lua-resty-openidc reaches your IdP by hostname, so a resolver is required.
+# 127.0.0.11 is Docker's embedded DNS; it also resolves public names.
+resolver 127.0.0.11 ipv6=off;
+
+# Trust anchors for the TLS calls lua-resty-openidc makes to the IdP. Depth 5
+# covers the two-intermediate chains modern Let's Encrypt issues.
+lua_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+lua_ssl_verify_depth 5;

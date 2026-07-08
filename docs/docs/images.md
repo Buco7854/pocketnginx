@@ -1,6 +1,8 @@
 import CodeBlock from "@theme/CodeBlock";
 import fullCompose from "!!raw-loader!@site/../example/full/docker-compose.yml";
 import fullEnv from "!!raw-loader!@site/../example/full/.env.example";
+import vtsVhost from "!!raw-loader!@site/../example/full/conf.d/20-vhost-traffic-status.conf";
+import crowdsecLocal from "!!raw-loader!@site/../example/full/crowdsec/conf/config.yaml.local";
 
 # Light and full images
 
@@ -38,6 +40,13 @@ it: no zone, no dashboard, no vhost. The module stays inert until you add a
 own config. Once you do, it serves a Lightngx-styled dashboard that is compiled
 into the module by default.
 
+The `example/full/` stack ships a ready-to-use vhost that serves the dashboard
+on a private `:9113`. Copy it into your seeded config
+(`nginx/conf/conf.d/20-vhost-traffic-status.conf`) and uncomment the matching
+`127.0.0.1:9113:9113` port bind in the compose:
+
+<CodeBlock language="nginx" title="example/full/conf.d/20-vhost-traffic-status.conf">{vtsVhost}</CodeBlock>
+
 :::warning Do not load VTS twice
 If your config already has its own `load_module` for VTS, remove it. A duplicate
 load fails `nginx -t`.
@@ -58,11 +67,15 @@ You have three options for the dashboard:
 The full image carries the runtime to gate any `server{}` or `location{}`
 behind an OIDC or TOTP check before requests reach the proxied app:
 lua-nginx-module with LuaJIT, and the whole `lua-resty-openidc` dependency tree,
-on the default lua path.
+on the default lua path. lua loads by default on the full image (like VTS), so
+a `rewrite_by_lua_block` gate works with no CrowdSec and no extra module wiring;
+it stays inert until you add one.
 
 The gate scripts are yours. Mount your own `*_gate.lua` and `include` it per
 vhost with `rewrite_by_lua_block`, so it coexists with the CrowdSec bouncer.
-Lightngx ships no gate lua and seeds nothing for it.
+The [hardened setup](./hardened.md) is a complete, ready-to-run example of
+exactly this: an OIDC gate with a TOTP fallback (and a standalone TOTP gate)
+put in front of the Lightngx UI itself.
 
 ## Example stack
 
@@ -70,20 +83,30 @@ A full-image reverse proxy with the CrowdSec bouncer wired up. CrowdSec
 itself (the LAPI and its Postgres database) runs alongside; Lightngx registers
 as a bouncer with the key you generate. This is a trimmed version of a working
 homelab stack; add a firewall bouncer, a CrowdSec dashboard or a cert manager
-as you see fit. It lives in the repo at
-[`example/full/`](https://github.com/buco7854/lightngx/tree/main/example/full).
+as you see fit.
 
-<CodeBlock language="yaml" title="example/full/docker-compose.yml">{fullCompose}</CodeBlock>
+You do not need to clone anything. Save this as `docker-compose.yml` in an empty
+directory:
 
-Copy `.env.example` to `.env` and fill the three required secrets; everything
-else has a default. The bouncer key is any random string CrowdSec registers on
-first boot, and Lightngx authenticates with the same value. Everything else
-about the bouncer (ban and captcha templates, the resolver drop-in) is seeded
+<CodeBlock language="yaml" title="docker-compose.yml">{fullCompose}</CodeBlock>
+
+Save this as `.env` beside it and fill the two required secrets; everything else
+has a default. The bouncer key is any random string CrowdSec registers on first
+boot, and Lightngx authenticates with the same value. Everything else about the
+bouncer (ban and captcha templates, the resolver drop-in) is seeded
 automatically on start. See
 [Configuration](./configuration.md#crowdsec-full-image) for the two CrowdSec
 variables.
 
-<CodeBlock language="ini" title="example/full/.env.example">{fullEnv}</CodeBlock>
+<CodeBlock language="ini" title=".env">{fullEnv}</CodeBlock>
+
+CrowdSec reads its database connection from a mounted `config.yaml.local` (the
+image has no `DB_*` environment variables, so without this file it silently falls
+back to SQLite and ignores the Postgres service). Save this as
+`crowdsec/conf/config.yaml.local`; it takes the DB credentials from the same
+`.env`:
+
+<CodeBlock language="yaml" title="crowdsec/conf/config.yaml.local">{crowdsecLocal}</CodeBlock>
 
 To automate certificates, point a cert manager (Certbot, CertWarden, acme.sh,
 …) at your certificate directory and have it reload nginx through a scoped

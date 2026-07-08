@@ -22,7 +22,7 @@ const sidebars = {
       type: "category",
       label: "Reference",
       collapsible: false,
-      items: ["configuration", "security", "images", "development"],
+      items: ["configuration", "security", "hardened", "images", "development"],
     },
   ],
 };

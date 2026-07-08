@@ -1,0 +1,16 @@
+# Secrets and runtime state created by the setup steps. Never commit these.
+# The gate keys live under nginx/conf/gates, inside the seeded config below.
+# nginx/lua/ holds the mounted gate scripts and is tracked; only the runtime
+# dirs below (the seeded config and logs) are ignored.
+.env
+/nginx/conf/
+/nginx/logs/
+/lightngx/
+# crowdsec/conf/config.yaml.local is tracked (the DB wiring); the rest is runtime.
+/crowdsec/db/
+/crowdsec/data/
+/crowdsec/conf/config.yaml
+/crowdsec/conf/local_api_credentials.yaml
+/crowdsec/conf/online_api_credentials.yaml
+# Track the DB wiring despite the repo-root `*.local` rule.
+!/crowdsec/conf/config.yaml.local

@@ -1,0 +1,35 @@
+# Public TLS vhost that puts the Lightngx UI behind the auth gate. Copy to
+# 10-lightngx-gated.conf (drop the .example), set your domain + certificate,
+# then `nginx -t` and reload. The seeded conf.d/lightngx.conf (LAN-only :9001)
+# can stay for local access; this vhost is the internet-facing one.
+
+map $http_x_forwarded_proto $lngx_fwd_proto {
+    default $http_x_forwarded_proto;
+    ''      $scheme;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name lightngx.example.com;
+
+    ssl_certificate     /etc/ssl/domains/lightngx.example.com/fullchain.pem;
+    ssl_certificate_key /etc/ssl/domains/lightngx.example.com/privkey.pem;
+
+    # The extra layer: authenticate at your IdP (with TOTP fallback) before a
+    # request ever reaches Lightngx's own login. Swap for totp-gate.conf to
+    # use only TOTP. Only one gate snippet per server: it is one
+    # rewrite_by_lua_block.
+    include /etc/nginx/snippets/oidc-gate.conf;
+
+    # The OIDC callback must reach the gate too; same server, so it does.
+    location / {
+        proxy_pass http://127.0.0.1:9000;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $lngx_fwd_proto;
+        proxy_buffering off;              # live log stream (SSE)
+        proxy_read_timeout 1h;
+    }
+}

@@ -1,0 +1,12 @@
+# Overlays config.yaml. Points the LAPI at the Postgres service; the values are
+# expanded from the crowdsec container's env (CROWDSEC_DB_* in the compose),
+# which is why the DB user/name/password live only in .env. Without this file
+# CrowdSec has no DB_* env to read and silently falls back to SQLite.
+db_config:
+  type: postgresql
+  host: ${CROWDSEC_DB_HOST}
+  port: ${CROWDSEC_DB_PORT}
+  user: ${CROWDSEC_DB_USER}
+  password: ${CROWDSEC_DB_PASSWORD}
+  db_name: ${CROWDSEC_DB_NAME}
+  sslmode: disable

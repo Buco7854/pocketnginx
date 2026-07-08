@@ -33,3 +33,18 @@ Terminate TLS at the proxy with HTTP/2, and forward to
 The live log stream is server-sent events, so the proxy must not buffer it. Set
 `proxy_buffering off;`. The app also sends `X-Accel-Buffering: no` as a second
 line of defense.
+
+## Exposing it to the internet
+
+With two-factor enabled, Lightngx should be safe to face the internet. That
+said, a personal opinion from the maintainer: I would not put something this
+sensitive (a tool that edits and reloads your nginx) directly on the public
+internet, and if I did, I would add another authentication layer in front of
+it. A gate at the nginx level means an attacker has to get through your
+identity provider before they ever reach the login page.
+
+The [hardened setup](./hardened.md) shows exactly that: an OIDC gate (with a
+TOTP fallback for when your IdP is down) or a standalone TOTP gate, dropped in
+front of the UI with the lua runtime the `:full` image already ships. The
+ready-to-run files are in
+[`example/hardened/`](https://github.com/buco7854/lightngx/tree/main/example/hardened).

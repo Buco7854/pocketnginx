@@ -1,0 +1,15 @@
+# Shared "never gated" CIDR list, referenced by gate snippets via
+#   gate.guard{ whitelist_ips_file = "/etc/nginx/gates/whitelist_ips" }
+# One CIDR per line, # comments, blank lines OK. Per-worker cached;
+# `nginx -s reload` to pick up changes.
+#
+# Copy to gates/whitelist_ips (mounted at /etc/nginx/gates/whitelist_ips in the
+# container; uncomment its mount in docker-compose.yml) and edit for your
+# environment.
+
+127.0.0.0/8
+10.0.0.0/8
+192.168.0.0/16
+172.16.0.0/12
+# 100.64.0.0/10        # Tailscale CGNAT
+# 203.0.113.5/32       # static office IP
