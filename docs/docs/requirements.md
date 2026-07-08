@@ -26,9 +26,9 @@ other sidecar; the measured footprint below is the whole cost.
 
 ## Measured footprint
 
-Numbers from a real run on a 4 vCPU Linux amd64 container, serving a demo
-config with four sites, two streams and a 300-line access log. Treat them
-as ballpark figures, not guarantees.
+Numbers from a real run on a 4 vCPU Linux amd64 container, serving 1,000
+sites (500 of them enabled), two streams, and a 19 MB access log of
+200,000 lines. Treat them as ballpark figures, not guarantees.
 
 | Measure | Value |
 | --- | --- |
@@ -36,13 +36,18 @@ as ballpark figures, not guarantees.
 | SQLite database with a few users, passkeys and API keys | 44 KB |
 | Data directory total, database plus session key | 76 KB |
 | Cold start until the UI serves requests | 15 ms |
-| Memory at idle | 14 MB resident |
-| Memory under load | 25 MB peak resident |
-| Sustained API throughput during that load | about 3,500 req/s |
+| Memory at idle with the 1,000 sites configured | 13 MB resident |
+| Memory at peak during the load below | 47 MB resident |
+| Read throughput during the load | about 1,200 req/s |
+| Guarded config saves during the load | about 40 saves/s |
+| Guarded save latency, `nginx -t` over 500 sites included | 87 ms median, 169 ms p95 |
 
-The load figures come from 30 seconds of 24 concurrent authenticated
-clients cycling through config, sites and log reads, while 25 live log
-streams followed a file being appended to.
+The load run: three signed-in users working at once for 60 seconds
+through 24 readers paging the access log at random offsets, listing the
+thousand sites, walking the config tree and opening site files, 4
+editors saving config edits (every save runs the full `nginx -t` and
+rolls back on failure), and 25 live log streams following a file being
+appended to.
 
 ## Browser
 
