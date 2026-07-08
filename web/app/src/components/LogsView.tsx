@@ -47,14 +47,17 @@ export default function LogsView({ onAuthLost }: { onAuthLost: () => void }) {
 
   const isGz = files.find((f) => f.path === selected)?.gzip ?? false;
 
+  // Live files open empty at the end of file so only new lines show;
+  // history stays behind "Load older". Rotated .gz files have no tail to
+  // follow, so they load their last page right away.
   const loadInitial = useCallback(
-    async (path: string) => {
+    async (path: string, gz: boolean) => {
       setLoaded(false);
       try {
-        const chunk = await api.logRead(path, 0, PAGE_BYTES);
-        setLines(chunk.lines);
-        setOffset(chunk.offset);
-        setAtEnd(chunk.atEnd);
+        const chunk = await api.logRead(path, 0, gz ? PAGE_BYTES : 1);
+        setLines(gz ? chunk.lines : []);
+        setOffset(gz ? chunk.offset : chunk.size);
+        setAtEnd(gz ? chunk.atEnd : chunk.size === 0);
         setSize(chunk.size);
         setLoaded(true);
         stickBottom.current = true;
@@ -70,8 +73,8 @@ export default function LogsView({ onAuthLost }: { onAuthLost: () => void }) {
   );
 
   useEffect(() => {
-    if (selected) loadInitial(selected);
-  }, [selected, loadInitial]);
+    if (selected) loadInitial(selected, isGz);
+  }, [selected, isGz, loadInitial]);
 
   // Live follow over SSE. Gated on `loaded` so the stream starts from the
   // file's end (the size set by loadInitial) — not from byte 0, which would
@@ -193,7 +196,7 @@ export default function LogsView({ onAuthLost }: { onAuthLost: () => void }) {
         className="min-h-0 flex-1 overflow-auto bg-inset py-2 font-mono text-[12.5px] leading-normal"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
-        {!atEnd && lines.length > 0 && (
+        {!atEnd && loaded && (
           <div className="flex justify-center py-2">
             <Btn className="min-h-[28px] px-4 text-xs" onClick={loadOlder}>
               {t.loadOlder}
