@@ -80,6 +80,7 @@ done
 # does not ship.
 have_crowdsec() { [ -e "$MA/mod-http-lua.conf" ] && [ -e "$DIST/crowdsec_nginx.conf" ]; }
 have_vts()      { [ -e "$MA/mod-http-vhost-traffic-status.conf" ]; }
+have_lua()      { [ -e "$MA/mod-http-lua.conf" ] && [ -e "$MA/mod-http-ndk.conf" ]; }
 
 # ---- CrowdSec bouncer ----
 # The LAPI key drives activation: seeding the snippet + resolver and writing
@@ -126,19 +127,24 @@ if have_crowdsec; then
         unseed_conf resolver.conf || true
     fi
 
-    # Link ndk+lua iff a snippet remains in conf.d; otherwise remove our
-    # links. This keeps nginx bootable whether the snippet is ours, seeded
-    # now, or a leftover from a previous image.
-    if [ -e "$CD/crowdsec_nginx.conf" ]; then
-        ensure_modules_include
-        link_module 10-mod-http-ndk.conf mod-http-ndk.conf
-        link_module 50-mod-http-lua.conf mod-http-lua.conf
-        [ -n "${CROWDSEC_LAPI_KEY:-}" ] || \
-            echo "[lightngx] NOTE: conf.d/crowdsec_nginx.conf is present without CROWDSEC_LAPI_KEY; loaded the lua modules so nginx starts, but the bouncer has no LAPI creds."
-    else
-        unlink_module 10-mod-http-ndk.conf mod-http-ndk.conf
-        unlink_module 50-mod-http-lua.conf mod-http-lua.conf
+    # ndk+lua are linked unconditionally further down (the -full image always
+    # loads lua), so there is nothing to link here. Just flag a present
+    # snippet with no key: the bouncer stays inert until CROWDSEC_LAPI_KEY.
+    if [ -e "$CD/crowdsec_nginx.conf" ] && [ -z "${CROWDSEC_LAPI_KEY:-}" ]; then
+        echo "[lightngx] NOTE: conf.d/crowdsec_nginx.conf is present without CROWDSEC_LAPI_KEY; the lua modules load but the bouncer has no LAPI creds."
     fi
+fi
+
+# ---- lua + NDK: loaded on the -full image by default ----
+# lua-nginx-module (with NDK) powers the CrowdSec bouncer AND any
+# rewrite_by_lua auth gate you add in front of a vhost. Like VTS it loads
+# unconditionally on -full and stays inert until a lua directive uses it, so
+# an auth gate works with no CrowdSec and no extra module wiring. NDK must
+# load before lua (10 < 50).
+if have_lua; then
+    ensure_modules_include
+    link_module 10-mod-http-ndk.conf mod-http-ndk.conf
+    link_module 50-mod-http-lua.conf mod-http-lua.conf
 fi
 
 # ---- VTS: load the compiled module on the -full image ----
