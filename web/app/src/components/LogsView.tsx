@@ -20,7 +20,6 @@ export default function LogsView({ onAuthLost }: { onAuthLost: () => void }) {
   const [lines, setLines] = useState<string[]>([]);
   const [offset, setOffset] = useState(0);
   const [atEnd, setAtEnd] = useState(false);
-  const [size, setSize] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [live, setLive] = useState(true);
   const viewRef = useRef<HTMLDivElement>(null);
@@ -57,7 +56,6 @@ export default function LogsView({ onAuthLost }: { onAuthLost: () => void }) {
         setLines(gz ? chunk.lines : []);
         setOffset(gz ? chunk.offset : chunk.size);
         setAtEnd(gz ? chunk.atEnd : chunk.size === 0);
-        setSize(chunk.size);
         setLoaded(true);
         stickBottom.current = true;
         requestAnimationFrame(() => {
@@ -77,14 +75,16 @@ export default function LogsView({ onAuthLost }: { onAuthLost: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, isGz]);
 
-  // Live follow over SSE. Gated on `loaded` so the stream starts from the
-  // file's end (the size set by loadInitial) — not from byte 0, which would
-  // replay the whole file on open.
+  // Live follow over SSE. With no `from`, the server starts the stream at the
+  // current end of file, so enabling follow — including after pausing and
+  // clearing — shows only new lines instead of replaying what was written
+  // while it was off. Gated on `loaded` so loadInitial cannot clear the view
+  // after the first streamed lines arrive.
   useEffect(() => {
     esRef.current?.close();
     esRef.current = null;
     if (!selected || !live || isGz || !loaded) return;
-    const es = new EventSource(api.logStreamURL(selected, size));
+    const es = new EventSource(api.logStreamURL(selected));
     es.onmessage = (ev) => {
       const line = JSON.parse(ev.data) as string;
       setLines((prev) => {
@@ -104,9 +104,6 @@ export default function LogsView({ onAuthLost }: { onAuthLost: () => void }) {
     };
     esRef.current = es;
     return () => es.close();
-    // `size` intentionally omitted: it marks the stream start position at
-    // toggle time, not a live dependency. `loaded` gates the open so size
-    // is set first.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, live, isGz, loaded, onAuthLost]);
 
