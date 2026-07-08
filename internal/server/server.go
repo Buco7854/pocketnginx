@@ -180,10 +180,11 @@ func (s *Server) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "storage error"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]bool{
+	writeJSON(w, http.StatusOK, map[string]any{
 		"bootstrap": boot,
 		"local":     true,
 		"oidc":      s.cfg.OIDCEnabled(),
+		"oidcLabel": s.cfg.OIDCLabel,
 	})
 }
 

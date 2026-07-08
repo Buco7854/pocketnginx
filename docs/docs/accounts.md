@@ -57,7 +57,8 @@ is group-based: `LN_OIDC_ALLOWED_GROUPS` controls who may log in, and
 `LN_OIDC_ADMIN_GROUPS` grants the admin role. If `LN_OIDC_ALLOWED_GROUPS` is
 unset, any authenticated user of the provider is accepted as role `user`,
 unless they are in `LN_OIDC_ADMIN_GROUPS`. The flow uses PKCE with `state` and
-`nonce`.
+`nonce`. Set `LN_OIDC_LABEL` to your provider's name to brand the login
+button, for example "Sign in with Authentik".
 
 The variables are listed in the [OIDC section of the Configuration
 page](./configuration.md#oidc).

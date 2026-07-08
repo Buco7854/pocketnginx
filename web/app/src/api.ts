@@ -122,7 +122,9 @@ export interface APIKey {
 
 export const api = {
   authStatus: () =>
-    request<{ bootstrap: boolean; local: boolean; oidc: boolean }>("/api/auth/status"),
+    request<{ bootstrap: boolean; local: boolean; oidc: boolean; oidcLabel?: string }>(
+      "/api/auth/status",
+    ),
   setup: (username: string, password: string) =>
     request<{ user: string; level: Level }>("/api/auth/setup", {
       method: "POST",

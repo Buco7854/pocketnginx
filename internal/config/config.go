@@ -69,6 +69,9 @@ type Config struct {
 	// OIDC identities in these groups are granted the admin role; all
 	// other OIDC logins are role "user". OIDC bypasses local MFA.
 	OIDCAdminGroups []string
+	// Provider name shown on the login button ("Sign in with <label>");
+	// empty falls back to the generic SSO wording.
+	OIDCLabel string
 
 	// WebAuthn relying-party identity. When empty they are derived from
 	// the request host/origin at enrollment time (works behind a proxy
@@ -119,6 +122,7 @@ func Load() (*Config, error) {
 		OIDCAllowedGroups: splitList(env("LN_OIDC_ALLOWED_GROUPS", "")),
 		OIDCGroupsClaim:   env("LN_OIDC_GROUPS_CLAIM", "groups"),
 		OIDCAdminGroups:   splitList(env("LN_OIDC_ADMIN_GROUPS", "")),
+		OIDCLabel:         env("LN_OIDC_LABEL", ""),
 
 		WebAuthnRPID:    env("LN_WEBAUTHN_RPID", ""),
 		WebAuthnOrigins: splitList(env("LN_WEBAUTHN_ORIGINS", "")),

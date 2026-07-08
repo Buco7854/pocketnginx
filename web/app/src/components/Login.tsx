@@ -17,13 +17,20 @@ export default function Login({
 }) {
   const { t } = useI18n();
   const [oidc, setOidc] = useState(false);
+  const [oidcLabel, setOidcLabel] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api.authStatus().then((s) => setOidc(s.oidc)).catch(() => {});
+    api
+      .authStatus()
+      .then((s) => {
+        setOidc(s.oidc);
+        setOidcLabel(s.oidcLabel ?? "");
+      })
+      .catch(() => {});
   }, []);
 
   async function submit(e: FormEvent) {
@@ -76,7 +83,7 @@ export default function Login({
               window.location.href = "/api/auth/oidc/login";
             }}
           >
-            {t.signInOIDC}
+            {oidcLabel ? t.signInWith(oidcLabel) : t.signInOIDC}
           </Btn>
         </>
       )}
