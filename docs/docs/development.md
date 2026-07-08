@@ -1,7 +1,3 @@
----
-sidebar_position: 9
----
-
 # Development
 
 Build the frontend, then the binary, then run the tests.
@@ -25,20 +21,20 @@ docker build --target full -t lightngx:full . # full
 
 ## These docs
 
-The documentation site is a Docusaurus project under `website/`.
+The documentation site is a Docusaurus project under `docs/`.
 
 ```sh
-cd website
+cd docs
 npm ci
 npm run start   # local preview with hot reload
-npm run build   # static output in website/build
+npm run build   # static output in docs/build
 ```
 
-A push to `main` that touches `website/`, and it publishes to GitHub Pages
-through the `docs` workflow.
+Any push to `main` that touches `docs/` is published to GitHub Pages by the
+`docs` workflow.
 
 :::tip Custom domain
-To serve the docs on your own domain, add `website/static/CNAME` containing
+To serve the docs on your own domain, add `docs/static/CNAME` containing
 just the domain (for example `lightngx.example.com`), and set the environment
 variable `DOCS_BASE_URL="/"` for the build. The default base path assumes the
 GitHub project page at `/lightngx/`.

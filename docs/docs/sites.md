@@ -1,16 +1,21 @@
----
-sidebar_position: 4
----
+import ThemedImage from "@theme/ThemedImage";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 
 # Sites and streams
-
-![The sites list](/img/screenshot-sites.png)
 
 Each row shows a vhost's domains as badges: `server_name` for HTTP sites, and
 `listen` to `proxy_pass` for streams. The filter box narrows the list. Enable
 and maintenance are per-row toggles applied right away. Tick several rows to
 reveal the bulk action bar, which asks for confirmation before it acts. Click a
 row to open its editor, which offers the same actions plus rename and delete.
+
+<ThemedImage
+  alt="The sites list"
+  sources={{
+    light: useBaseUrl("/img/screenshot-sites.png"),
+    dark: useBaseUrl("/img/screenshot-sites-dark.png"),
+  }}
+/>
 
 ## Enable and disable
 
@@ -38,4 +43,10 @@ Streams work the same way under `streams-available` and `streams-enabled` for
 the `stream{}` context (TCP and UDP), without maintenance mode. A stream row
 badges its `listen` to `proxy_pass` target instead of domains.
 
-![The streams list](/img/screenshot-streams.png)
+<ThemedImage
+  alt="The streams list"
+  sources={{
+    light: useBaseUrl("/img/screenshot-streams.png"),
+    dark: useBaseUrl("/img/screenshot-streams-dark.png"),
+  }}
+/>

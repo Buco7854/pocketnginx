@@ -7,7 +7,7 @@ web/dist/*
 web/app/dist/
 
 # Docusaurus docs site
-website/build/
-website/.docusaurus/
+docs/build/
+docs/.docusaurus/
 *.local
 .DS_Store

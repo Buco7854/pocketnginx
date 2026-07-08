@@ -1,8 +1,10 @@
 ---
 slug: /
 sidebar_label: Overview
-sidebar_position: 1
 ---
+
+import ThemedImage from "@theme/ThemedImage";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 
 # Lightngx
 
@@ -14,7 +16,13 @@ restart. It is a single static Go binary with the React frontend embedded, so
 there is no database server and no runtime dependency to install. Run it as one
 container, or drop the binary next to your existing nginx.
 
-![The Lightngx configuration editor](/img/screenshot-editor.png)
+<ThemedImage
+  alt="The Lightngx configuration editor"
+  sources={{
+    light: useBaseUrl("/img/screenshot-editor.png"),
+    dark: useBaseUrl("/img/screenshot-editor-dark.png"),
+  }}
+/>
 
 ## What it does
 
@@ -50,12 +58,34 @@ traps. A left sidebar carries the pages (Config, Sites, Streams, Logs, Profile,
 Admin). The navbar holds nginx status and operations, the theme switch and the
 language picker.
 
-![The config file browser](/img/screenshot-config.png)
+<ThemedImage
+  alt="The config file browser"
+  sources={{
+    light: useBaseUrl("/img/screenshot-config.png"),
+    dark: useBaseUrl("/img/screenshot-config-dark.png"),
+  }}
+/>
+
+## Philosophy
+
+Lightngx is a project I build and maintain first of all for my own
+servers. The whole point is that it stays light: a small, focused UI that
+does the everyday nginx chores well, instead of growing into yet another
+bloated control panel.
+
+That shapes how it is maintained. Reported bugs get fixed and dependencies
+stay current, but new features land rarely and deliberately. Feature
+requests are welcome, and one that fits this philosophy and catches my
+interest may well get built. Just do not expect a steady stream of new
+functionality.
 
 ## Where to go next
 
+- [System requirements](./requirements.md) is the short list of what it
+  needs.
 - [Getting started](./getting-started.md) walks through a first run with Docker
-  Compose.
+  Compose, and [Running without Docker](./without-docker.md) covers the bare
+  binary.
 - [Configuration](./configuration.md) is the full list of environment
   variables.
 - [Light and full images](./images.md) explains the two image flavours and the

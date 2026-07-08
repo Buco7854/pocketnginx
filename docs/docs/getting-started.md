@@ -1,7 +1,3 @@
----
-sidebar_position: 2
----
-
 # Getting started
 
 The quickest way to run Lightngx is with Docker Compose.

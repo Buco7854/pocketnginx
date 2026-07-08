@@ -1,7 +1,3 @@
----
-sidebar_position: 7
----
-
 # Security
 
 Lightngx is meant to be exposed publicly behind nginx itself, and it is

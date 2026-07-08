@@ -2,7 +2,7 @@
 const { themes } = require("prism-react-renderer");
 
 // GitHub project pages live under /<repo>/. For a custom domain set
-// DOCS_BASE_URL="/" (and add website/static/CNAME with the domain); after a
+// DOCS_BASE_URL="/" (and add docs/static/CNAME with the domain); after a
 // repo rename set it to "/<new-repo>/".
 const baseUrl = process.env.DOCS_BASE_URL || "/lightngx/";
 const url = process.env.DOCS_URL || "https://buco7854.github.io";
@@ -31,7 +31,7 @@ const config = {
         docs: {
           routeBasePath: "/",
           sidebarPath: require.resolve("./sidebars.js"),
-          editUrl: "https://github.com/buco7854/lightngx/tree/main/website/",
+          editUrl: "https://github.com/buco7854/lightngx/tree/main/docs/",
         },
         blog: false,
         theme: {

@@ -1,7 +1,3 @@
----
-sidebar_position: 8
----
-
 # Light and full images
 
 One Dockerfile builds two flavours, selected with `--target`.

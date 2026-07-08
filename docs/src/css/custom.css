@@ -22,7 +22,9 @@
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.08);
 }
 
-[data-theme="dark"] {
+/* Infima sets its dark defaults on html[data-theme="dark"], so the
+   overrides need the same specificity or the backgrounds stay gray. */
+html[data-theme="dark"] {
   --ifm-color-primary: #26b356;
   --ifm-color-primary-dark: #22a14d;
   --ifm-color-primary-darker: #209849;
@@ -43,8 +45,6 @@
   border: 1px solid var(--ifm-color-emphasis-200);
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
 }
-
-/* A slightly tinted navbar so the brand green carries through. */
-.navbar {
-  backdrop-filter: saturate(1.1);
-}
+/* No backdrop-filter on .navbar: it would create a containing block, which
+   traps the fixed-position mobile drawer (.navbar-sidebar) inside the
+   navbar's 60px box and renders the menu unusable on phones. */

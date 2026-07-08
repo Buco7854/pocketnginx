@@ -1,6 +1,5 @@
----
-sidebar_position: 3
----
+import ThemedImage from "@theme/ThemedImage";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 
 # Accounts and access
 
@@ -15,7 +14,13 @@ live in the embedded SQLite database. There are three ways to sign in.
   local MFA. The role is `admin` when the identity is in `LN_OIDC_ADMIN_GROUPS`,
   and `user` otherwise.
 
-![The profile and two-factor page](/img/screenshot-mfa.png)
+<ThemedImage
+  alt="The profile and two-factor page"
+  sources={{
+    light: useBaseUrl("/img/screenshot-mfa.png"),
+    dark: useBaseUrl("/img/screenshot-mfa-dark.png"),
+  }}
+/>
 
 ## Two-factor auth
 
@@ -37,23 +42,22 @@ Admins manage the MFA policy and every account from the **Administration**
 page: create users, change roles, and reset passwords. The last remaining admin
 cannot be demoted or deleted, so you can never lock yourself out.
 
-![User management on the administration page](/img/screenshot-admin.png)
+<ThemedImage
+  alt="User management on the administration page"
+  sources={{
+    light: useBaseUrl("/img/screenshot-admin.png"),
+    dark: useBaseUrl("/img/screenshot-admin-dark.png"),
+  }}
+/>
 
 ## OIDC
 
 OIDC login is additional to local accounts, which stay available. Authorization
-is group-based.
+is group-based: `LN_OIDC_ALLOWED_GROUPS` controls who may log in, and
+`LN_OIDC_ADMIN_GROUPS` grants the admin role. If `LN_OIDC_ALLOWED_GROUPS` is
+unset, any authenticated user of the provider is accepted as role `user`,
+unless they are in `LN_OIDC_ADMIN_GROUPS`. The flow uses PKCE with `state` and
+`nonce`.
 
-| Variable | Description |
-| --- | --- |
-| `LN_OIDC_ISSUER` | Issuer URL, used for discovery |
-| `LN_OIDC_CLIENT_ID` and `LN_OIDC_CLIENT_SECRET` | Client credentials |
-| `LN_OIDC_REDIRECT_URL` | `https://<host>/api/auth/oidc/callback` |
-| `LN_OIDC_SCOPES` | Defaults to `openid,profile,email` |
-| `LN_OIDC_GROUPS_CLAIM` | ID-token claim holding the user's groups (default `groups`) |
-| `LN_OIDC_ALLOWED_GROUPS` | Groups allowed to log in |
-| `LN_OIDC_ADMIN_GROUPS` | Groups granted the admin role |
-
-If `LN_OIDC_ALLOWED_GROUPS` is unset, any authenticated user of the provider is
-accepted as role `user`, unless they are in `LN_OIDC_ADMIN_GROUPS`. The flow
-uses PKCE with `state` and `nonce`.
+The variables are listed in the [OIDC section of the Configuration
+page](./configuration.md#oidc).

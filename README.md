@@ -8,19 +8,19 @@ binary with the React frontend embedded: no database server, no runtime
 dependency. Run it as one container, or drop the binary next to your nginx.
 
 <p>
-  <img src="website/static/img/screenshot-editor.png" alt="Editor" width="76%">
-  <img src="website/static/img/screenshot-mobile.png" alt="Mobile" width="21%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/static/img/screenshot-editor-dark.png">
+    <img src="docs/static/img/screenshot-editor.png" alt="Editor" width="76%">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/static/img/screenshot-mobile-dark.png">
+    <img src="docs/static/img/screenshot-mobile.png" alt="Mobile" width="21%">
+  </picture>
 </p>
 
 ## Documentation
 
 Full guides live at **https://buco7854.github.io/lightngx/**
-
-- [Getting started](https://buco7854.github.io/lightngx/getting-started)
-- [Configuration](https://buco7854.github.io/lightngx/configuration)
-- [Accounts, roles and MFA](https://buco7854.github.io/lightngx/accounts)
-- [Security](https://buco7854.github.io/lightngx/security)
-- [Light and full images](https://buco7854.github.io/lightngx/images)
 
 ## Quick start
 
@@ -31,7 +31,8 @@ docker compose up -d
 ```
 
 Open the UI on **port 9000**. On the first run it shows a setup page to create
-the first administrator.
+the first administrator. No Docker? The binary is fully static, see
+[Running without Docker](https://buco7854.github.io/lightngx/without-docker).
 
 ## Highlights
 
@@ -57,6 +58,15 @@ the first administrator.
 See [Light and full images](https://buco7854.github.io/lightngx/images) for
 what turns on the extras.
 
+## Philosophy
+
+Lightngx is a project I build and maintain first of all for my own servers,
+and the whole point is that it stays light: a small, focused UI for the
+everyday nginx chores, not another bloated control panel. Reported bugs get
+fixed and dependencies stay current, but new features land rarely and
+deliberately. A request that fits this philosophy and catches my interest
+may well get built, just do not expect a steady stream of new functionality.
+
 ## Development
 
 ```sh
@@ -65,5 +75,5 @@ go build ./cmd/lightngx                 # single binary
 go test ./...
 ```
 
-The docs site is a Docusaurus project under `website/`. See the
+The docs site is a Docusaurus project under `docs/`. See the
 [development guide](https://buco7854.github.io/lightngx/development).

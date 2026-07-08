@@ -1,7 +1,3 @@
----
-sidebar_position: 5
----
-
 # API keys
 
 Automation such as certificate-renewal hooks, CI jobs and monitoring can drive

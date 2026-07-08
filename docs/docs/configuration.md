@@ -1,7 +1,3 @@
----
-sidebar_position: 6
----
-
 # Configuration
 
 Everything is configured through environment variables, all prefixed with
@@ -34,8 +30,20 @@ Everything is configured through environment variables, all prefixed with
 | `LN_WEBAUTHN_RPID` | request host | WebAuthn relying-party ID; defaults to the browser host |
 | `LN_WEBAUTHN_ORIGINS` | request origin | Allowed WebAuthn origins, comma-separated |
 
-See [Accounts and access](./accounts.md) for the OIDC variables and how roles
-are assigned.
+## OIDC
+
+| Variable | Description |
+| --- | --- |
+| `LN_OIDC_ISSUER` | Issuer URL, used for discovery |
+| `LN_OIDC_CLIENT_ID` and `LN_OIDC_CLIENT_SECRET` | Client credentials |
+| `LN_OIDC_REDIRECT_URL` | `https://<host>/api/auth/oidc/callback` |
+| `LN_OIDC_SCOPES` | Defaults to `openid,profile,email` |
+| `LN_OIDC_GROUPS_CLAIM` | ID-token claim holding the user's groups (default `groups`) |
+| `LN_OIDC_ALLOWED_GROUPS` | Groups allowed to log in |
+| `LN_OIDC_ADMIN_GROUPS` | Groups granted the admin role |
+
+See [Accounts and access](./accounts.md#oidc) for how OIDC sign-in behaves and
+how roles are assigned.
 
 ## Sessions and proxy
 
