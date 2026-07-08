@@ -236,7 +236,7 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 	}
 	// If the policy already requires MFA for this role (e.g. pinned via
 	// LN_MFA_REQUIRED_ROLES), the new admin must enrol a second factor
-	// straight away — same as the login flow. Otherwise they are fully in
+	// straight away, same as the login flow. Otherwise they are fully in
 	// (and, when the policy is undecided, prompted to choose it in-app).
 	level := auth.LevelFull
 	if required, err := s.accounts.RoleRequiresMFA(u.Role); err == nil && required {
@@ -416,8 +416,10 @@ func (s *Server) handleWriteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r, "config.write", "path", req.Path)
-	writeJSON(w, http.StatusOK, map[string]any{
-		"status": "saved", "output": out, "hash": contentHash([]byte(req.Content))})
+	resp := map[string]any{
+		"status": "saved", "output": out, "hash": contentHash([]byte(req.Content))}
+	s.applyReload(r, "config.write", resp)
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) handleMkdir(w http.ResponseWriter, r *http.Request) {
@@ -460,7 +462,9 @@ func (s *Server) handleDeleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r, "config.delete", "path", path)
-	writeJSON(w, http.StatusOK, map[string]any{"status": "deleted", "output": out})
+	resp := map[string]any{"status": "deleted", "output": out}
+	s.applyReload(r, "config.delete", resp)
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) handleRenameFile(w http.ResponseWriter, r *http.Request) {
@@ -492,7 +496,24 @@ func (s *Server) handleRenameFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r, "config.rename", "from", req.From, "to", req.To)
-	writeJSON(w, http.StatusOK, map[string]any{"status": "renamed", "output": out})
+	resp := map[string]any{"status": "renamed", "output": out}
+	s.applyReload(r, "config.rename", resp)
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// applyReload reloads nginx after a mutation passed nginx -t, when
+// LN_AUTO_RELOAD is on, recording the outcome in resp. The change is already
+// saved and valid, so a reload failure is surfaced but not treated as fatal.
+func (s *Server) applyReload(r *http.Request, action string, resp map[string]any) {
+	if !s.cfg.AutoReload {
+		return
+	}
+	if _, err := s.nginx.Reload(r.Context()); err != nil {
+		s.audit(r, action+".reload_failed", "error", err.Error())
+		resp["reloadError"] = err.Error()
+		return
+	}
+	resp["reloaded"] = true
 }
 
 func statusFor(err error) int {

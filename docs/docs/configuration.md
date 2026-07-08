@@ -16,11 +16,12 @@ Everything is configured through environment variables, all prefixed with
 | `LN_NGINX_PID` | `/var/run/nginx.pid` | Pidfile, used when not supervising |
 | `LN_SUPERVISE` | `false` (`true` in the image) | Run nginx as a supervised child process |
 | `LN_LOGROTATE` | `true` | Rotate nginx logs on a timer while supervising |
+| `LN_AUTO_RELOAD` | `true` | Reload nginx after a config edit passes `nginx -t`. Set `false` to only validate on save and reload by hand |
 | `LN_LOG_PATHS` | `/var/log/nginx` | Log files or directories, separated by comma or colon |
 | `LN_MAX_EDIT_SIZE` | `2097152` | Largest editable file, in bytes |
 | `LN_DOCKER_LOGS` | `false` | Keep the base image's stdout and stderr log symlinks; this disables the log viewer for those files |
-| `LN_FIX_CONFIG_PERMS` | `true` | On start, own `/etc/nginx` as the nginx worker user and lock the gate dir, so the workers can read the config and any `0600` key files. Set `false` to leave ownership untouched |
-| `LN_NGINX_USER` | the `user` directive | The user `LN_FIX_CONFIG_PERMS` chowns the config to; auto-detected from `nginx.conf` (`nginx`, or `www-data` on a Debian-style config) |
+| `LN_FIX_CONFIG_PERMS` | `true` | Own the config as the nginx worker user so the workers can read it: on start the entrypoint chowns `/etc/nginx`, and files the UI creates or renames are chowned to the same user. Set `false` to leave ownership untouched |
+| `LN_NGINX_USER` | the `user` directive | The worker user `LN_FIX_CONFIG_PERMS` chowns to; auto-detected from `nginx.conf` (`nginx`, or `www-data` on a Debian-style config) |
 
 ## Accounts and MFA
 

@@ -45,6 +45,7 @@ services:
       - LN_MAINTENANCE=${LN_MAINTENANCE:-true}
       - LN_MAINTENANCE_PAGE=${LN_MAINTENANCE_PAGE:-}
       - LN_LOGROTATE=${LN_LOGROTATE:-true}
+      - LN_AUTO_RELOAD=${LN_AUTO_RELOAD:-true}
       - LN_LOG_PATHS=${LN_LOG_PATHS:-/var/log/nginx}
 
       # ---- Pre-seeded admin (optional) ----

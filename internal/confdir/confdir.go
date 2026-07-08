@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/Buco7854/lightngx/internal/fsown"
 )
 
 var (
@@ -223,6 +225,7 @@ func (d *Dir) Write(rel string, content []byte) (restore func() error, err error
 		os.Remove(tmpName)
 		return nil, err
 	}
+	fsown.Chown(abs)
 
 	restore = func() error {
 		if existed {
@@ -259,6 +262,7 @@ func atomicWrite(abs string, content []byte, mode os.FileMode) error {
 		os.Remove(name)
 		return err
 	}
+	fsown.Chown(abs)
 	return nil
 }
 
@@ -274,7 +278,11 @@ func (d *Dir) Mkdir(rel string) error {
 		}
 		return errors.New("a file with that name already exists")
 	}
-	return os.MkdirAll(abs, 0o755)
+	if err := os.MkdirAll(abs, 0o755); err != nil {
+		return err
+	}
+	fsown.Chown(abs)
+	return nil
 }
 
 // Rename moves a file, symlink or directory inside the root and returns a
@@ -301,6 +309,7 @@ func (d *Dir) Rename(fromRel, toRel string) (restore func() error, err error) {
 	if err := os.Rename(from, to); err != nil {
 		return nil, err
 	}
+	fsown.ChownTree(to)
 	return func() error { return os.Rename(to, from) }, nil
 }
 
@@ -317,7 +326,7 @@ func (d *Dir) Delete(rel string) (restore func() error, err error) {
 		return nil, err
 	}
 	// A symlink is removed as the link itself (even one pointing at a dir),
-	// never followed — matching how the tree lists it.
+	// never followed, matching how the tree lists it.
 	if info.Mode()&os.ModeSymlink != 0 {
 		target, _ := os.Readlink(abs)
 		if err := os.Remove(abs); err != nil {
@@ -418,5 +427,6 @@ func restoreTree(root string, nodes []snapNode) error {
 			}
 		}
 	}
+	fsown.ChownTree(root)
 	return nil
 }

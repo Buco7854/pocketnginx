@@ -12,7 +12,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -23,6 +25,7 @@ import (
 	"github.com/Buco7854/lightngx/internal/auth"
 	"github.com/Buco7854/lightngx/internal/confdir"
 	"github.com/Buco7854/lightngx/internal/config"
+	"github.com/Buco7854/lightngx/internal/fsown"
 	"github.com/Buco7854/lightngx/internal/logs"
 	"github.com/Buco7854/lightngx/internal/nginxctl"
 	"github.com/Buco7854/lightngx/internal/server"
@@ -150,6 +153,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	if cfg.FixConfigPerms {
+		if u, g, name, ok := resolveNginxUser(cfg); ok {
+			fsown.Configure(u, g)
+			slog.Info("UI-created config files will be owned by the nginx worker user", "user", name)
+		}
+	}
 	logStore := logs.New(cfg.LogPaths)
 
 	userStore, err := store.Open(cfg.DBPath, encKey)
@@ -235,4 +244,46 @@ func run() error {
 	_ = httpSrv.Shutdown(ctx)
 	nginx.Shutdown()
 	return nil
+}
+
+// resolveNginxUser finds the uid/gid of the nginx worker user: cfg.NginxUser
+// when set, otherwise the `user` directive in nginx.conf, defaulting to
+// "nginx". Returns ok=false when the user cannot be looked up.
+func resolveNginxUser(cfg *config.Config) (uid, gid int, name string, ok bool) {
+	name = cfg.NginxUser
+	if name == "" {
+		name = nginxUserDirective(cfg.NginxConf)
+	}
+	if name == "" {
+		name = "nginx"
+	}
+	u, err := user.Lookup(name)
+	if err != nil {
+		return 0, 0, name, false
+	}
+	uid, err = strconv.Atoi(u.Uid)
+	if err != nil {
+		return 0, 0, name, false
+	}
+	gid, err = strconv.Atoi(u.Gid)
+	if err != nil {
+		return 0, 0, name, false
+	}
+	return uid, gid, name, true
+}
+
+// nginxUserDirective returns the username from the top-level `user` directive
+// in nginx.conf, or "" if absent.
+func nginxUserDirective(confPath string) string {
+	b, err := os.ReadFile(confPath)
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		f := strings.Fields(line)
+		if len(f) >= 2 && f[0] == "user" {
+			return strings.TrimSuffix(f[1], ";")
+		}
+	}
+	return ""
 }

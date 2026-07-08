@@ -29,6 +29,14 @@ type Config struct {
 	// logrotate or its config are absent.
 	Logrotate bool
 
+	// AutoReload reloads nginx after a config edit passes nginx -t.
+	AutoReload bool
+
+	// FixConfigPerms chowns files the UI creates to NginxUser (the nginx
+	// worker user, auto-detected from nginx.conf when NginxUser is empty).
+	FixConfigPerms bool
+	NginxUser      string
+
 	LogPaths []string
 
 	// Sites management (Debian sites-available/sites-enabled convention)
@@ -45,7 +53,7 @@ type Config struct {
 	StreamsEnabledDir   string
 
 	// Seed admin: creates a first admin row in the user DB on startup if
-	// that username does not exist yet. Optional — the web setup page
+	// that username does not exist yet. Optional: the web setup page
 	// handles first-run when unset.
 	AdminUser         string
 	AdminPasswordHash string
@@ -104,6 +112,10 @@ func Load() (*Config, error) {
 		NginxPidFile: env("LN_NGINX_PID", "/var/run/nginx.pid"),
 		Supervise:    envBool("LN_SUPERVISE", false),
 		Logrotate:    envBool("LN_LOGROTATE", true),
+
+		AutoReload:     envBool("LN_AUTO_RELOAD", true),
+		FixConfigPerms: envBool("LN_FIX_CONFIG_PERMS", true),
+		NginxUser:      env("LN_NGINX_USER", ""),
 
 		LogPaths: splitPaths(env("LN_LOG_PATHS", "/var/log/nginx")),
 

@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/Buco7854/lightngx/internal/fsown"
 )
 
 var (
@@ -172,6 +174,7 @@ func (m *Manager) MaintenanceOn(name string) (func() error, error) {
 	if err := os.WriteFile(genPath, []byte(conf), 0o644); err != nil {
 		return nil, err
 	}
+	fsown.Chown(genPath)
 
 	link := filepath.Join(m.enabled, name)
 	prev, err := m.snapshotLink(link)
@@ -276,6 +279,7 @@ func (m *Manager) Rename(name, newName string) (func() error, error) {
 	if err := os.Rename(oldAvail, newAvail); err != nil {
 		return nil, err
 	}
+	fsown.Chown(newAvail)
 	if enabled {
 		oldLink := filepath.Join(m.enabled, name)
 		newLink := filepath.Join(m.enabled, newName)
@@ -402,7 +406,11 @@ func (m *Manager) setLink(link, target string) error {
 	if err := os.Remove(link); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	return os.Symlink(target, link)
+	if err := os.Symlink(target, link); err != nil {
+		return err
+	}
+	fsown.Chown(link)
+	return nil
 }
 
 // materializePage writes the maintenance HTML into the state dir: the
@@ -411,16 +419,25 @@ func (m *Manager) materializePage() error {
 	if err := os.MkdirAll(m.stateDir, 0o755); err != nil {
 		return err
 	}
+	fsown.Chown(m.stateDir)
 	dst := filepath.Join(m.stateDir, "maintenance.html")
 	if m.pageSrc != "" {
 		b, err := os.ReadFile(m.pageSrc)
 		if err != nil {
 			return fmt.Errorf("LN_MAINTENANCE_PAGE: %w", err)
 		}
-		return os.WriteFile(dst, b, 0o644)
+		if err := os.WriteFile(dst, b, 0o644); err != nil {
+			return err
+		}
+		fsown.Chown(dst)
+		return nil
 	}
 	if _, err := os.Stat(dst); err == nil {
 		return nil
 	}
-	return os.WriteFile(dst, []byte(defaultPage), 0o644)
+	if err := os.WriteFile(dst, []byte(defaultPage), 0o644); err != nil {
+		return err
+	}
+	fsown.Chown(dst)
+	return nil
 }
