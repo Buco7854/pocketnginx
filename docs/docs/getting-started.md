@@ -6,40 +6,43 @@ import uiProxyTls from "!!raw-loader!@site/../docker/ui-proxy-tls.conf";
 
 # Getting started
 
-Lightngx is a single container: nginx plus a web UI to manage it. The quickest
-way to run it is with Docker Compose.
+Lightngx is a single container: nginx plus a web UI to manage it. Run it with
+Docker Compose.
 
 ## Run it
 
-You do not need to clone anything. Save this as `docker-compose.yml` in an empty
-directory:
-
-<CodeBlock language="yaml" title="docker-compose.yml">{lightCompose}</CodeBlock>
-
-Every setting reads an environment variable that already has a sensible default,
-so this runs as-is. To change any value, save a `.env` beside the compose; here
-is every variable Lightngx reads, each at its default:
-
-<details>
-<summary>The full <code>.env</code> reference</summary>
-
-<CodeBlock language="ini" title=".env">{lightEnv}</CodeBlock>
-
-</details>
-
-Then start it:
+Create a directory, drop in the compose file, and start it:
 
 ```sh
+mkdir lightngx && cd lightngx
+curl -fsSL https://raw.githubusercontent.com/buco7854/lightngx/main/example/light/docker-compose.yml -o docker-compose.yml
 docker compose up -d
 ```
 
-The compose publishes the UI on `127.0.0.1:9000`, so **on the machine running
-it** open **`http://localhost:9000`**. The first visit shows a setup page where
-you create the first administrator, and you are in.
+It runs as-is. **On the machine running it**, open **`http://localhost:9000`**:
+the first visit is a setup page where you create the first administrator.
 
-That is the whole quick start. The rest of this page is reference: reaching the
-UI from another machine, choosing an image, pre-seeding the admin, where data
-lives, and running behind a proxy.
+<details>
+<summary>Prefer to paste the compose by hand? Here it is.</summary>
+
+<CodeBlock language="yaml" title="docker-compose.yml">{lightCompose}</CodeBlock>
+
+</details>
+
+## Change a setting
+
+Every variable has a sensible default, so the defaults above just work. The
+compose reads a handful from a `.env` beside it; set those there:
+
+<CodeBlock language="ini" title=".env">{lightEnv}</CodeBlock>
+
+[Configuration](./configuration.md) is the full list of `LN_*` variables. To use
+one that is not in the `.env` above, add it to the compose's `environment:` list
+(that is all a variable needs to take effect).
+
+The rest of this page is reference: reaching the UI from another machine,
+choosing an image, pre-seeding the admin, where data lives, and running behind a
+proxy.
 
 ## Reaching the UI from another machine
 

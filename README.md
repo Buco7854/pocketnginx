@@ -25,14 +25,15 @@ Full guides live at **https://buco7854.github.io/lightngx/**
 ## Quick start
 
 ```sh
-git clone https://github.com/buco7854/lightngx
-cd lightngx/example/light
-cp .env.example .env          # optional, every value has a default
+mkdir lightngx && cd lightngx
+curl -fsSL https://raw.githubusercontent.com/buco7854/lightngx/main/example/light/docker-compose.yml -o docker-compose.yml
 docker compose up -d
 ```
 
 Open the UI on **port 9000**. On the first run it shows a setup page to create
-the first administrator. No Docker? The binary is fully static, see
+the first administrator. Every setting has a default; see
+[Configuration](https://buco7854.github.io/lightngx/configuration) to change
+one. No Docker? The binary is fully static, see
 [Running without Docker](https://buco7854.github.io/lightngx/without-docker).
 
 ## Highlights

@@ -1,8 +1,8 @@
-# Hardened deployment: the full example plus an nginx-level auth gate (OIDC
-# with TOTP fallback, or TOTP) in front of the UI. Same layout as the full
-# example; the only differences are the gate mounts and that port 9000 is not
-# published (the gate fronts the UI). Fill the secrets in .env, create the gate
-# key files, then: docker compose up -d. Full walkthrough in README.md.
+# Hardened deployment: the full stack plus an nginx-level auth gate (OIDC with
+# TOTP fallback, or TOTP) in front of the UI. Same as the full example, except
+# port 9000 is not published (the gate fronts the UI) and the gate lua is
+# mounted. Fill the secrets in .env, create the gate key files, then:
+# docker compose up -d. Full walkthrough: https://buco7854.github.io/lightngx/hardened
 
 services:
   nginx:
@@ -19,86 +19,32 @@ services:
       - "80:80"
       - "443:443"
       # The gated vhost (10-lightngx-gated.conf) is the way in. For a LAN
-      # shortcut past the gate, copy examples/ui-proxy.conf into conf.d
-      # (:9001) and uncomment:
+      # shortcut past the gate, copy examples/ui-proxy.conf into conf.d (:9001)
+      # and uncomment:
       # - "9001:9001"
-      # Optional VTS traffic-status page. Copy conf.d/20-vhost-traffic-status.conf
-      # into your config, then uncomment this to reach it at 127.0.0.1:9113/status.
-      # - "127.0.0.1:9113:9113"
     volumes:
-      - "${NGINX_CONF_DIR:-./nginx/conf}:/etc/nginx"      # your whole nginx config; seeded if empty
-      - "${NGINX_LOG_DIR:-./nginx/logs}:/var/log/nginx"
-      - "${DATA_DIR:-./lightngx}:/var/lib/lightngx"       # keep this volume
+      - "./nginx/conf:/etc/nginx"       # your whole nginx config; seeded if empty
+      - "./nginx/logs:/var/log/nginx"   # shared with CrowdSec
+      - "./lightngx:/var/lib/lightngx"  # accounts + settings; keep this volume
       - "${CERT_DIR:-/etc/ssl/domains}:${CERT_DIR:-/etc/ssl/domains}:ro"
-      # The gate lua is the only piece that lives outside /etc/nginx, so it is
-      # the only extra mount. Everything else (00-auth-gate.conf, the snippets,
-      # the gate key files) you place in the nginx config dir above; the setup
-      # guide copies them in.
+      # The gate lua is the only piece outside /etc/nginx, so the only extra
+      # mount; it must exist before the first start (see the walkthrough).
       - "./nginx/lua/oidc_gate.lua:/usr/local/share/lua/5.1/oidc_gate.lua:ro"
       - "./nginx/lua/totp_gate.lua:/usr/local/share/lua/5.1/totp_gate.lua:ro"
       - "./nginx/lua/totp.lua:/usr/local/share/lua/5.1/totp.lua:ro"
     environment:
       - TZ=${TZ:-UTC}
-
-      # ---- Security & sessions ----
-      - LN_SECURE_COOKIES=${LN_SECURE_COOKIES:-auto}
+      # 32+ chars so logins survive a restart (openssl rand -hex 32).
       - LN_SESSION_SECRET=${LN_SESSION_SECRET:-}
-      - LN_SESSION_TTL=${LN_SESSION_TTL:-12h}
-      - LN_TRUSTED_PROXIES=${LN_TRUSTED_PROXIES:-}
-      - LN_MAX_EDIT_SIZE=${LN_MAX_EDIT_SIZE:-2097152}
-
-      # ---- Features ----
-      - LN_SITES=${LN_SITES:-true}
-      - LN_STREAMS=${LN_STREAMS:-true}
-      - LN_MAINTENANCE=${LN_MAINTENANCE:-true}
-      - LN_MAINTENANCE_PAGE=${LN_MAINTENANCE_PAGE:-}
-      - LN_LOGROTATE=${LN_LOGROTATE:-true}
-      - LN_AUTO_RELOAD=${LN_AUTO_RELOAD:-true}
-      - LN_LOG_PATHS=${LN_LOG_PATHS:-/var/log/nginx}
-
-      # ---- Pre-seeded admin (optional) ----
-      - LN_ADMIN_USER=${LN_ADMIN_USER:-}
-      - LN_ADMIN_PASSWORD_HASH=${LN_ADMIN_PASSWORD_HASH:-}
-
-      # ---- Two-factor / WebAuthn ----
+      # Roles forced to set up 2FA. admin,user to include users; empty to let
+      # the admin decide in-app.
       - LN_MFA_REQUIRED_ROLES=${LN_MFA_REQUIRED_ROLES-admin}
-      - LN_WEBAUTHN_RPID=${LN_WEBAUTHN_RPID:-}
-      - LN_WEBAUTHN_ORIGINS=${LN_WEBAUTHN_ORIGINS:-}
-
-      # ---- OIDC (Lightngx's own login; separate from the nginx gate) ----
-      - LN_OIDC_ISSUER=${LN_OIDC_ISSUER:-}
-      - LN_OIDC_CLIENT_ID=${LN_OIDC_CLIENT_ID:-}
-      - LN_OIDC_CLIENT_SECRET=${LN_OIDC_CLIENT_SECRET:-}
-      - LN_OIDC_REDIRECT_URL=${LN_OIDC_REDIRECT_URL:-}
-      - LN_OIDC_SCOPES=${LN_OIDC_SCOPES:-openid,profile,email}
-      - LN_OIDC_GROUPS_CLAIM=${LN_OIDC_GROUPS_CLAIM:-groups}
-      - LN_OIDC_ALLOWED_GROUPS=${LN_OIDC_ALLOWED_GROUPS:-}
-      - LN_OIDC_ADMIN_GROUPS=${LN_OIDC_ADMIN_GROUPS:-}
-      - LN_OIDC_LABEL=${LN_OIDC_LABEL:-}
-      - LN_OIDC_AUTH_URL=${LN_OIDC_AUTH_URL:-}
-      - LN_OIDC_TOKEN_URL=${LN_OIDC_TOKEN_URL:-}
-      - LN_OIDC_JWKS_URL=${LN_OIDC_JWKS_URL:-}
-      - LN_OIDC_USERINFO_URL=${LN_OIDC_USERINFO_URL:-}
-
-      # ---- CrowdSec bouncer: a key turns it on; it is shared with the LAPI. ----
+      # CrowdSec bouncer: a key turns it on; it is shared with the LAPI.
       - CROWDSEC_LAPI_URL=${CROWDSEC_LAPI_URL:-http://crowdsec:8080}
       - CROWDSEC_LAPI_KEY=${CROWDSEC_BOUNCER_KEY:?generate a shared bouncer key}
-
-      # ---- Container internals (image-managed; change only with the mounts) ----
-      - LN_LISTEN=${LN_LISTEN:-:9000}
-      - LN_SUPERVISE=${LN_SUPERVISE:-true}
-      - LN_DATA_DIR=${LN_DATA_DIR:-/var/lib/lightngx}
-      - LN_DB_PATH=${LN_DB_PATH:-}
-      - LN_NGINX_BIN=${LN_NGINX_BIN:-nginx}
-      - LN_NGINX_CONF=${LN_NGINX_CONF:-/etc/nginx/nginx.conf}
-      - LN_NGINX_CONF_DIR=${LN_NGINX_CONF_DIR:-/etc/nginx}
-      - LN_NGINX_PID=${LN_NGINX_PID:-/var/run/nginx.pid}
-      - LN_FIX_CONFIG_PERMS=${LN_FIX_CONFIG_PERMS:-true}
-      - LN_NGINX_USER=${LN_NGINX_USER:-}
-      - LN_SITES_AVAILABLE_DIR=${LN_SITES_AVAILABLE_DIR:-}
-      - LN_SITES_ENABLED_DIR=${LN_SITES_ENABLED_DIR:-}
-      - LN_STREAMS_AVAILABLE_DIR=${LN_STREAMS_AVAILABLE_DIR:-}
-      - LN_STREAMS_ENABLED_DIR=${LN_STREAMS_ENABLED_DIR:-}
+      # Optional: pre-seed the first admin and skip the setup page.
+      # - LN_ADMIN_USER=${LN_ADMIN_USER:-}
+      # - LN_ADMIN_PASSWORD_HASH=${LN_ADMIN_PASSWORD_HASH:-}
     depends_on:
       - crowdsec
     networks: [proxy]
@@ -122,9 +68,9 @@ services:
       - CROWDSEC_DB_PASSWORD=${CROWDSEC_DB_PASSWORD:?set a database password}
       - CROWDSEC_DB_NAME=${CROWDSEC_DB_NAME:-crowdsec}
     volumes:
-      - "${CROWDSEC_CONF_DIR:-./crowdsec/conf}:/etc/crowdsec"
-      - "${CROWDSEC_DATA_DIR:-./crowdsec/data}:/var/lib/crowdsec/data"
-      - "${NGINX_LOG_DIR:-./nginx/logs}:/var/log/nginx:ro"
+      - "./crowdsec/conf:/etc/crowdsec"
+      - "./crowdsec/data:/var/lib/crowdsec/data"
+      - "./nginx/logs:/var/log/nginx:ro"
     expose:
       - "8080"   # LAPI, compose network only
     networks: [proxy]
@@ -141,7 +87,7 @@ services:
       - POSTGRES_USER=${CROWDSEC_DB_USER:-crowdsec}
       - POSTGRES_PASSWORD=${CROWDSEC_DB_PASSWORD:?set a database password}
     volumes:
-      - "${CROWDSEC_DB_DIR:-./crowdsec/db}:/var/lib/postgresql"
+      - "./crowdsec/db:/var/lib/postgresql"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${CROWDSEC_DB_USER:-crowdsec} -d ${CROWDSEC_DB_NAME:-crowdsec}"]
       interval: 10s

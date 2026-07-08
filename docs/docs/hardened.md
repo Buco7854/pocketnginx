@@ -71,10 +71,10 @@ setup below.
 
 ## Set it up
 
-You do not clone or copy anything from the repo. Every file you need is shown
-below; save each one to the path in its title. The flow is: create the compose
-and `.env`, start once so the container seeds `./nginx/conf` (which is
-`/etc/nginx`), then save the gate files into that seeded directory and reload.
+The flow is: fetch the stack files, start once so the container seeds
+`./nginx/conf` (which is `/etc/nginx`), then save the gate config into that
+seeded directory and reload. Every file is also shown in full below, so you can
+paste it by hand instead of fetching.
 
 :::note Already run your own nginx?
 Skip the compose and `.env` and the seeding start (steps 1 and 2), but you still
@@ -91,26 +91,41 @@ and nginx rejects duplicates.
 
 ### 1. Create the compose, env, and gate scripts
 
-Save this as `docker-compose.yml`. It is the full example plus the three gate
-`*.lua` mounts, nothing else:
+Fetch the stack files into a clean directory. The three gate `*.lua` mount onto
+nginx's lua require path, so they must exist **before** the first start or Docker
+creates empty directories in their place. This fetch puts them where the compose
+expects:
+
+```sh
+mkdir lightngx && cd lightngx
+base=https://raw.githubusercontent.com/buco7854/lightngx/main/example/hardened
+curl -fsSL $base/docker-compose.yml -o docker-compose.yml
+curl -fsSL $base/.env.example -o .env
+mkdir -p crowdsec/conf nginx/lua
+curl -fsSL $base/crowdsec/conf/config.yaml.local -o crowdsec/conf/config.yaml.local
+for f in oidc_gate.lua totp_gate.lua totp.lua; do curl -fsSL "$base/nginx/lua/$f" -o "nginx/lua/$f"; done
+```
+
+Then edit `.env`: fill the required secrets (`CROWDSEC_BOUNCER_KEY`,
+`CROWDSEC_DB_PASSWORD`) and set `LN_SESSION_SECRET`. The gate `*.lua` are plain
+lua you own and can edit.
+
+<details>
+<summary>The stack files, to read or paste by hand</summary>
+
+The compose is the full example plus the three gate `*.lua` mounts:
 
 <CodeBlock language="yaml" title="docker-compose.yml">{hardenedCompose}</CodeBlock>
 
-Save this as `.env` beside it and fill the secrets it marks required
-(`CROWDSEC_BOUNCER_KEY`, `CROWDSEC_DB_PASSWORD`), and set `LN_SESSION_SECRET`:
-
 <CodeBlock language="ini" title=".env">{hardenedEnv}</CodeBlock>
 
-The compose above mounts three gate scripts from `./nginx/lua/` onto nginx's lua
-require path (`/usr/local/share/lua/5.1/`), so they must exist **before** you
-start, or Docker creates empty directories in their place. They are plain lua you
-own and can edit. Create `nginx/lua/` and save all three there (download them
-from
-[`example/hardened/nginx/lua/`](https://github.com/buco7854/lightngx/tree/main/example/hardened/nginx/lua),
-or copy them from here):
+CrowdSec reads its DB connection from this mounted `config.yaml.local` (the
+image has no `DB_*` env, so without it CrowdSec silently uses SQLite and ignores
+Postgres). It reads the credentials from your `.env`:
 
-<details>
-<summary>The three gate scripts (save under <code>nginx/lua/</code>)</summary>
+<CodeBlock language="yaml" title="crowdsec/conf/config.yaml.local">{crowdsecLocal}</CodeBlock>
+
+The three gate scripts (under `nginx/lua/`):
 
 <CodeBlock language="lua" title="nginx/lua/oidc_gate.lua">{oidcLua}</CodeBlock>
 
@@ -119,13 +134,6 @@ or copy them from here):
 <CodeBlock language="lua" title="nginx/lua/totp.lua">{totpLua}</CodeBlock>
 
 </details>
-
-CrowdSec runs on the Postgres service, but the image has no `DB_*` environment
-variables, so the DB connection has to come from a mounted `config.yaml.local`
-(without it CrowdSec silently uses SQLite and ignores Postgres). Save this as
-`crowdsec/conf/config.yaml.local`; it reads the credentials from your `.env`:
-
-<CodeBlock language="yaml" title="crowdsec/conf/config.yaml.local">{crowdsecLocal}</CodeBlock>
 
 ### 2. Start once to seed the config
 

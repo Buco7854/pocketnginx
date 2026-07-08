@@ -3,6 +3,10 @@
 Everything is configured through environment variables, all prefixed with
 `LN_`. Every value has a default, so an untouched setup runs fine.
 
+The example compose files show only the common variables. To set any other one,
+add it to the `nginx` service's `environment:` list — that is all a variable
+needs to take effect.
+
 ## Core
 
 | Variable | Default | Description |

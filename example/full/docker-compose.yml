@@ -1,7 +1,7 @@
-# Full image (light + CrowdSec bouncer, VTS, lua-resty-openidc) with the
-# CrowdSec LAPI and its Postgres database. Same layout as the light example,
-# plus CrowdSec. Fill the required secrets in .env (or hardcode them below),
-# then: docker compose up -d
+# Full image (light + CrowdSec bouncer, VTS, lua runtime) with the CrowdSec
+# LAPI and its Postgres database. Fill the required secrets in .env, then:
+# docker compose up -d. Every LN_* variable not shown here has a default:
+# https://buco7854.github.io/lightngx/configuration
 
 services:
   nginx:
@@ -17,81 +17,31 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "${UI_BIND:-127.0.0.1}:9000:9000"   # management UI (localhost only by default)
-      # Reach it from the network: set UI_BIND=0.0.0.0 to expose 9000, or copy
-      # a proxy vhost from /usr/share/lightngx/examples/ into conf.d. For the
-      # HTTP LAN proxy (ui-proxy.conf, :9001) uncomment:
-      # - "9001:9001"
-      # Optional VTS traffic-status page. Copy conf.d/20-vhost-traffic-status.conf
-      # into your config, then uncomment this to reach it at 127.0.0.1:9113/status.
+      - "${UI_BIND:-127.0.0.1}:9000:9000"   # UI, localhost-only by default
+      # Reach the UI from the network: set UI_BIND=0.0.0.0 (local HTTP only), or
+      # copy a proxy from /usr/share/lightngx/examples/ into conf.d and publish
+      # its port. See https://buco7854.github.io/lightngx/getting-started
+      # Optional VTS traffic-status page: copy conf.d/20-vhost-traffic-status.conf
+      # into your config, then uncomment to reach it at 127.0.0.1:9113/status.
       # - "127.0.0.1:9113:9113"
     volumes:
-      - "${NGINX_CONF_DIR:-./nginx/conf}:/etc/nginx"      # seeded if empty
-      - "${NGINX_LOG_DIR:-./nginx/logs}:/var/log/nginx"
-      - "${DATA_DIR:-./lightngx}:/var/lib/lightngx"       # keep this volume
+      - "./nginx/conf:/etc/nginx"       # your whole nginx config; seeded if empty
+      - "./nginx/logs:/var/log/nginx"   # shared with CrowdSec
+      - "./lightngx:/var/lib/lightngx"  # accounts + settings; keep this volume
       - "${CERT_DIR:-/etc/ssl/domains}:${CERT_DIR:-/etc/ssl/domains}:ro"
     environment:
       - TZ=${TZ:-UTC}
-
-      # ---- Security & sessions ----
-      - LN_SECURE_COOKIES=${LN_SECURE_COOKIES:-auto}
+      # 32+ chars so logins survive a restart (openssl rand -hex 32).
       - LN_SESSION_SECRET=${LN_SESSION_SECRET:-}
-      - LN_SESSION_TTL=${LN_SESSION_TTL:-12h}
-      - LN_TRUSTED_PROXIES=${LN_TRUSTED_PROXIES:-}
-      - LN_MAX_EDIT_SIZE=${LN_MAX_EDIT_SIZE:-2097152}
-
-      # ---- Features ----
-      - LN_SITES=${LN_SITES:-true}
-      - LN_STREAMS=${LN_STREAMS:-true}
-      - LN_MAINTENANCE=${LN_MAINTENANCE:-true}
-      - LN_MAINTENANCE_PAGE=${LN_MAINTENANCE_PAGE:-}
-      - LN_LOGROTATE=${LN_LOGROTATE:-true}
-      - LN_AUTO_RELOAD=${LN_AUTO_RELOAD:-true}
-      - LN_LOG_PATHS=${LN_LOG_PATHS:-/var/log/nginx}
-
-      # ---- Pre-seeded admin (optional) ----
-      - LN_ADMIN_USER=${LN_ADMIN_USER:-}
-      - LN_ADMIN_PASSWORD_HASH=${LN_ADMIN_PASSWORD_HASH:-}
-
-      # ---- Two-factor / WebAuthn ----
+      # Roles forced to set up 2FA. admin,user to include users; empty to let
+      # the admin decide in-app.
       - LN_MFA_REQUIRED_ROLES=${LN_MFA_REQUIRED_ROLES-admin}
-      - LN_WEBAUTHN_RPID=${LN_WEBAUTHN_RPID:-}
-      - LN_WEBAUTHN_ORIGINS=${LN_WEBAUTHN_ORIGINS:-}
-
-      # ---- OIDC (optional) ----
-      - LN_OIDC_ISSUER=${LN_OIDC_ISSUER:-}
-      - LN_OIDC_CLIENT_ID=${LN_OIDC_CLIENT_ID:-}
-      - LN_OIDC_CLIENT_SECRET=${LN_OIDC_CLIENT_SECRET:-}
-      - LN_OIDC_REDIRECT_URL=${LN_OIDC_REDIRECT_URL:-}
-      - LN_OIDC_SCOPES=${LN_OIDC_SCOPES:-openid,profile,email}
-      - LN_OIDC_GROUPS_CLAIM=${LN_OIDC_GROUPS_CLAIM:-groups}
-      - LN_OIDC_ALLOWED_GROUPS=${LN_OIDC_ALLOWED_GROUPS:-}
-      - LN_OIDC_ADMIN_GROUPS=${LN_OIDC_ADMIN_GROUPS:-}
-      - LN_OIDC_LABEL=${LN_OIDC_LABEL:-}
-      - LN_OIDC_AUTH_URL=${LN_OIDC_AUTH_URL:-}
-      - LN_OIDC_TOKEN_URL=${LN_OIDC_TOKEN_URL:-}
-      - LN_OIDC_JWKS_URL=${LN_OIDC_JWKS_URL:-}
-      - LN_OIDC_USERINFO_URL=${LN_OIDC_USERINFO_URL:-}
-
-      # ---- CrowdSec bouncer: a key turns it on; it is shared with the LAPI. ----
+      # CrowdSec bouncer: a key turns it on; it is shared with the LAPI.
       - CROWDSEC_LAPI_URL=${CROWDSEC_LAPI_URL:-http://crowdsec:8080}
       - CROWDSEC_LAPI_KEY=${CROWDSEC_BOUNCER_KEY:?generate a shared bouncer key}
-
-      # ---- Container internals (image-managed; change only with the mounts) ----
-      - LN_LISTEN=${LN_LISTEN:-:9000}
-      - LN_SUPERVISE=${LN_SUPERVISE:-true}
-      - LN_DATA_DIR=${LN_DATA_DIR:-/var/lib/lightngx}
-      - LN_DB_PATH=${LN_DB_PATH:-}
-      - LN_NGINX_BIN=${LN_NGINX_BIN:-nginx}
-      - LN_NGINX_CONF=${LN_NGINX_CONF:-/etc/nginx/nginx.conf}
-      - LN_NGINX_CONF_DIR=${LN_NGINX_CONF_DIR:-/etc/nginx}
-      - LN_NGINX_PID=${LN_NGINX_PID:-/var/run/nginx.pid}
-      - LN_FIX_CONFIG_PERMS=${LN_FIX_CONFIG_PERMS:-true}
-      - LN_NGINX_USER=${LN_NGINX_USER:-}
-      - LN_SITES_AVAILABLE_DIR=${LN_SITES_AVAILABLE_DIR:-}
-      - LN_SITES_ENABLED_DIR=${LN_SITES_ENABLED_DIR:-}
-      - LN_STREAMS_AVAILABLE_DIR=${LN_STREAMS_AVAILABLE_DIR:-}
-      - LN_STREAMS_ENABLED_DIR=${LN_STREAMS_ENABLED_DIR:-}
+      # Optional: pre-seed the first admin and skip the setup page.
+      # - LN_ADMIN_USER=${LN_ADMIN_USER:-}
+      # - LN_ADMIN_PASSWORD_HASH=${LN_ADMIN_PASSWORD_HASH:-}
     depends_on:
       - crowdsec
     networks: [proxy]
@@ -115,9 +65,9 @@ services:
       - CROWDSEC_DB_PASSWORD=${CROWDSEC_DB_PASSWORD:?set a database password}
       - CROWDSEC_DB_NAME=${CROWDSEC_DB_NAME:-crowdsec}
     volumes:
-      - "${CROWDSEC_CONF_DIR:-./crowdsec/conf}:/etc/crowdsec"
-      - "${CROWDSEC_DATA_DIR:-./crowdsec/data}:/var/lib/crowdsec/data"
-      - "${NGINX_LOG_DIR:-./nginx/logs}:/var/log/nginx:ro"
+      - "./crowdsec/conf:/etc/crowdsec"
+      - "./crowdsec/data:/var/lib/crowdsec/data"
+      - "./nginx/logs:/var/log/nginx:ro"
     expose:
       - "8080"   # LAPI, compose network only
     networks: [proxy]
@@ -134,7 +84,7 @@ services:
       - POSTGRES_USER=${CROWDSEC_DB_USER:-crowdsec}
       - POSTGRES_PASSWORD=${CROWDSEC_DB_PASSWORD:?set a database password}
     volumes:
-      - "${CROWDSEC_DB_DIR:-./crowdsec/db}:/var/lib/postgresql"
+      - "./crowdsec/db:/var/lib/postgresql"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${CROWDSEC_DB_USER:-crowdsec} -d ${CROWDSEC_DB_NAME:-crowdsec}"]
       interval: 10s

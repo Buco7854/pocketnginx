@@ -79,35 +79,43 @@ put in front of the Lightngx UI itself.
 
 ## Example stack
 
-A full-image reverse proxy with the CrowdSec bouncer wired up. CrowdSec
-itself (the LAPI and its Postgres database) runs alongside; Lightngx registers
-as a bouncer with the key you generate. This is a trimmed version of a working
-homelab stack; add a firewall bouncer, a CrowdSec dashboard or a cert manager
-as you see fit.
+A full-image reverse proxy with the CrowdSec bouncer wired up: CrowdSec (the
+LAPI and its Postgres database) runs alongside, and Lightngx registers as a
+bouncer with a key you generate. This is a trimmed working homelab stack; add a
+firewall bouncer, a CrowdSec dashboard or a cert manager as you see fit.
 
-You do not need to clone anything. Save this as `docker-compose.yml` in an empty
-directory:
+Fetch the three files it needs into a clean directory:
+
+```sh
+mkdir lightngx && cd lightngx
+base=https://raw.githubusercontent.com/buco7854/lightngx/main/example/full
+curl -fsSL $base/docker-compose.yml -o docker-compose.yml
+mkdir -p crowdsec/conf
+curl -fsSL $base/crowdsec/conf/config.yaml.local -o crowdsec/conf/config.yaml.local
+curl -fsSL $base/.env.example -o .env
+```
+
+Edit `.env` to set the two required secrets, then `docker compose up -d`. The
+bouncer key is any random string; CrowdSec registers it on first boot and
+Lightngx authenticates with the same value. Everything else about the bouncer
+(ban and captcha templates, the resolver drop-in) is seeded on start.
+
+<details>
+<summary>The three files, to read or paste by hand</summary>
 
 <CodeBlock language="yaml" title="docker-compose.yml">{fullCompose}</CodeBlock>
 
-Save this as `.env` beside it and fill the two required secrets; everything else
-has a default. The bouncer key is any random string CrowdSec registers on first
-boot, and Lightngx authenticates with the same value. Everything else about the
-bouncer (ban and captcha templates, the resolver drop-in) is seeded
-automatically on start. See
-[Configuration](./configuration.md#crowdsec-full-image) for the two CrowdSec
-variables.
-
 <CodeBlock language="ini" title=".env">{fullEnv}</CodeBlock>
 
-CrowdSec reads its database connection from a mounted `config.yaml.local` (the
-image has no `DB_*` environment variables, so without this file it silently falls
-back to SQLite and ignores the Postgres service). Save this as
-`crowdsec/conf/config.yaml.local`; it takes the DB credentials from the same
-`.env`:
+CrowdSec reads its database connection from this mounted `config.yaml.local`
+(the image has no `DB_*` env, so without it CrowdSec silently uses SQLite and
+ignores the Postgres service). It takes the credentials from the same `.env`:
 
 <CodeBlock language="yaml" title="crowdsec/conf/config.yaml.local">{crowdsecLocal}</CodeBlock>
 
-To automate certificates, point a cert manager (Certbot, CertWarden, acme.sh,
-…) at your certificate directory and have it reload nginx through a scoped
+</details>
+
+See [Configuration](./configuration.md) for the full variable list. To automate
+certificates, point a cert manager (Certbot, CertWarden, acme.sh, …) at your
+certificate directory and have it reload nginx through a scoped
 [API key](./api-keys.md) with the `nginx:reload` scope.
