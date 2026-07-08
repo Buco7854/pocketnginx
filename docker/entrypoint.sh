@@ -19,6 +19,25 @@ if [ ! -e /etc/nginx/conf.d/lightngx.conf ] \
     echo "[lightngx] seeded conf.d/lightngx.conf"
 fi
 
+# Own the whole nginx config as the worker user, so the unprivileged workers can
+# always read what lightngx (and you) put there. Config is 0644 and readable
+# either way, but 0600 drop-ins like the auth-gate key files need the right
+# owner. The user is the nginx `user` directive (LN_NGINX_USER overrides);
+# LN_FIX_CONFIG_PERMS=false turns this off. The master still runs as root, so
+# nginx keeps binding 80/443 (and it works under no-new-privileges).
+if [ "${LN_FIX_CONFIG_PERMS:-true}" = "true" ]; then
+    nuser="${LN_NGINX_USER:-$(awk '$1=="user"{gsub(/;/,"",$2); print $2; exit}' /etc/nginx/nginx.conf 2>/dev/null)}"
+    nuser="${nuser:-nginx}"
+    if id "$nuser" >/dev/null 2>&1; then
+        echo "[lightngx] owning /etc/nginx as $nuser (the worker user)"
+        chown -R "$nuser":"$nuser" /etc/nginx 2>/dev/null || true
+        # Lock the auth-gate secrets to the owner (no group/other access).
+        [ -d /etc/nginx/gates ] && chmod -R go-rwx /etc/nginx/gates 2>/dev/null || true
+    else
+        echo "[lightngx] LN_FIX_CONFIG_PERMS: user '$nuser' not found, skipping chown"
+    fi
+fi
+
 # The nginx base image symlinks its logs to /dev/stdout|stderr, which the
 # log viewer cannot read. Replace them with real files unless the user
 # opts back into docker-style logging with LN_DOCKER_LOGS=true.
