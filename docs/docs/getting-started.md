@@ -54,10 +54,7 @@ instance works over plain HTTP on the LAN and HTTPS from a front proxy at the
 same time, with no env change.
 
 - **Expose 9000 directly (local HTTP only).** Set `UI_BIND=0.0.0.0` in the
-  compose and browse `http://<host>:9000` from your LAN. Do not put an external
-  HTTPS proxy in front of this port: the app then can't tell the request was
-  HTTPS and leaves the session cookie non-`Secure`. For any remote or HTTPS
-  access, use the reverse-proxy option below instead.
+  compose and browse `http://<host>:9000` from your LAN.
 - **Copy a proxy vhost into `conf.d`.** Two examples ship in the image at
   `/usr/share/lightngx/examples/`. The HTTP one answers private-network
   addresses only on `:9001`; publish that port (uncomment `- "9001:9001"`) and
@@ -68,6 +65,13 @@ same time, with no env change.
 The HTTPS one terminates TLS. Set your domain and certificate paths first:
 
 <CodeBlock language="nginx" title="conf.d/lightngx.conf (HTTPS)">{uiProxyTls}</CodeBlock>
+
+:::warning Expose 9000 directly only for local HTTP
+Do not put an external HTTPS proxy straight in front of port 9000: the app
+can't tell the request was HTTPS and leaves the session cookie non-`Secure`.
+For any remote or HTTPS access, front it with the bundled nginx (the vhosts
+above) instead, or set `LN_TRUSTED_PROXIES` to your proxy.
+:::
 
 For a public deployment, put an [auth gate](./hardened.md) in front.
 
