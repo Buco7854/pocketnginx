@@ -43,17 +43,26 @@ type Session struct {
 // IsAdmin reports whether the session principal has the admin role.
 func (s *Session) IsAdmin() bool { return s.Role == "admin" }
 
+// SecureFunc decides, per request, whether an auth cookie gets the Secure
+// flag. One instance can then serve plain HTTP on the LAN and HTTPS from a
+// front proxy at the same time, each getting the right flag.
+type SecureFunc func(*http.Request) bool
+
 // Sessions issues and verifies HMAC-signed session tokens. Tokens are
 // stateless: payload JSON + SHA-256 HMAC, both base64url encoded.
 type Sessions struct {
 	secret []byte
 	ttl    time.Duration
-	secure bool
+	secure SecureFunc
 }
 
-func NewSessions(secret []byte, ttl time.Duration, secure bool) *Sessions {
+func NewSessions(secret []byte, ttl time.Duration, secure SecureFunc) *Sessions {
 	return &Sessions{secret: secret, ttl: ttl, secure: secure}
 }
+
+// Secure reports whether cookies for this request should carry the Secure
+// flag, per the configured policy.
+func (s *Sessions) Secure(r *http.Request) bool { return s.secure(r) }
 
 // LoadOrCreateSecret returns the configured secret, or a random one
 // persisted under dataDir so sessions survive restarts.
@@ -139,7 +148,7 @@ func (s *Sessions) TTLFor(level string) time.Duration {
 }
 
 // Issue sets a session cookie carrying sess.
-func (s *Sessions) Issue(w http.ResponseWriter, sess Session) error {
+func (s *Sessions) Issue(w http.ResponseWriter, r *http.Request, sess Session) error {
 	now := time.Now()
 	ttl := s.TTLFor(sess.Level)
 	sess.IssuedAt = now
@@ -154,7 +163,7 @@ func (s *Sessions) Issue(w http.ResponseWriter, sess Session) error {
 		Path:     "/",
 		MaxAge:   int(ttl.Seconds()),
 		HttpOnly: true,
-		Secure:   s.secure,
+		Secure:   s.secure(r),
 		SameSite: http.SameSiteLaxMode,
 	})
 	return nil
@@ -168,14 +177,14 @@ func (s *Sessions) Sign(payload []byte) string { return s.sign(payload) }
 func (s *Sessions) Unsign(token string) ([]byte, error) { return s.verify(token) }
 
 // Clear expires the session cookie.
-func (s *Sessions) Clear(w http.ResponseWriter) {
+func (s *Sessions) Clear(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     SessionCookie,
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   s.secure,
+		Secure:   s.secure(r),
 		SameSite: http.SameSiteLaxMode,
 	})
 }

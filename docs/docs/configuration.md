@@ -57,7 +57,7 @@ how roles are assigned.
 | --- | --- | --- |
 | `LN_SESSION_SECRET` | auto-generated | 32 or more characters; signs session cookies. Set it to keep sessions valid across ephemeral containers. TOTP-secret encryption uses a separate key in the data directory |
 | `LN_SESSION_TTL` | `12h` | Session lifetime |
-| `LN_SECURE_COOKIES` | `true` | Set to `false` only for plain-HTTP testing |
+| `LN_SECURE_COOKIES` | `auto` | Secure-cookie policy. `auto` mirrors the request scheme (Secure over HTTPS, not over plain HTTP), so HTTP-LAN and HTTPS work at once. `true`/`false` force it |
 | `LN_TRUSTED_PROXIES` | | CIDRs allowed to set `X-Forwarded-For`, used for audit logs and rate limiting behind a proxy |
 
 ## Sites and streams

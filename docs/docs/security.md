@@ -27,8 +27,10 @@ hardened for that.
 ## Recommended front proxy
 
 Terminate TLS at the proxy with HTTP/2, and forward to
-`http://127.0.0.1:9000`. Keep `LN_SECURE_COOKIES=true` and set
-`LN_TRUSTED_PROXIES` to the proxy address so forwarded client IPs are trusted.
+`http://127.0.0.1:9000`. Set `LN_TRUSTED_PROXIES` to the proxy address so
+forwarded client IPs are trusted; on a separate (non-loopback) proxy this also
+lets the default `auto` cookie policy see the HTTPS scheme and set `Secure`.
+Force it with `LN_SECURE_COOKIES=true` if you prefer.
 
 The live log stream is server-sent events, so the proxy must not buffer it. Set
 `proxy_buffering off;`. The app also sends `X-Accel-Buffering: no` as a second

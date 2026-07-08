@@ -192,7 +192,7 @@ func (s *Server) issueSession(w http.ResponseWriter, r *http.Request, u store.Us
 	if err != nil {
 		return err
 	}
-	return s.sessions.Issue(w, auth.Session{
+	return s.sessions.Issue(w, r, auth.Session{
 		UserID: u.ID, User: u.Username, Role: u.Role, Method: method, Level: level, Sid: sid,
 	})
 }
@@ -295,7 +295,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	if sess, err := s.sessions.FromRequest(r); err == nil && sess.Sid != "" {
 		_ = s.accounts.Store().DeleteSession(sess.Sid, sess.UserID)
 	}
-	s.sessions.Clear(w)
+	s.sessions.Clear(w, r)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -312,7 +312,7 @@ func (s *Server) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 		role = "admin"
 	}
 	sess := auth.Session{User: username, Role: role, Method: "oidc", Level: auth.LevelFull}
-	if err := s.sessions.Issue(w, sess); err != nil {
+	if err := s.sessions.Issue(w, r, sess); err != nil {
 		http.Error(w, "session error", http.StatusInternalServerError)
 		return
 	}

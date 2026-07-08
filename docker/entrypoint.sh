@@ -11,25 +11,10 @@ if [ -z "$(ls -A /etc/nginx 2>/dev/null)" ]; then
 fi
 
 # The UI listens on 127.0.0.1:9000, unreachable from the network on its own.
-# Warn until something forwards to it.
+# Hint at how to expose it (full guide in the docs) until something does.
 if ! grep -RqsF ':9000' \
         /etc/nginx/conf.d /etc/nginx/sites-available /etc/nginx/streams-available 2>/dev/null; then
-    cat >&2 <<'EOF'
-
-============================================================================
-[lightngx] The UI is not reachable from the network yet. It listens on
-127.0.0.1:9000 inside the container. Do ONE of:
-
-  1. Expose 9000 directly: set UI_BIND=0.0.0.0 (over plain HTTP also set
-     LN_SECURE_COOKIES=false, or the login cookie never sticks).
-  2. Copy an example proxy vhost into conf.d and reload:
-       /usr/share/lightngx/examples/ui-proxy.conf      HTTP, LAN only, :9001
-       /usr/share/lightngx/examples/ui-proxy-tls.conf  HTTPS
-
-Docs: https://buco7854.github.io/lightngx/getting-started
-============================================================================
-
-EOF
+    echo "[lightngx] UI is localhost-only (127.0.0.1:9000). To expose it, set UI_BIND=0.0.0.0 or copy an example from /usr/share/lightngx/examples/ into conf.d. See https://buco7854.github.io/lightngx/getting-started" >&2
 fi
 
 # Own the whole nginx config as the worker user, so the unprivileged workers can

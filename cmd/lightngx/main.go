@@ -126,7 +126,8 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	sessions := auth.NewSessions(secret, cfg.SessionTTL, cfg.SecureCookies)
+	sessions := auth.NewSessions(secret, cfg.SessionTTL,
+		auth.NewSecureFunc(cfg.CookieSecure, cfg.TrustedProxies))
 
 	encKey, err := auth.LoadOrCreateDataKey(cfg.DataDir)
 	if err != nil {
@@ -205,7 +206,7 @@ func run() error {
 			TokenURL:      cfg.OIDCTokenURL,
 			JWKSURL:       cfg.OIDCJWKSURL,
 			UserInfoURL:   cfg.OIDCUserInfoURL,
-		}, sessions, cfg.SecureCookies)
+		}, sessions)
 		cancel()
 		if err != nil {
 			return err

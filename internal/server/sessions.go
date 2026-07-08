@@ -88,7 +88,7 @@ func (s *Server) setTrustCookie(w http.ResponseWriter, r *http.Request, userID i
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name: trustCookie, Value: s.sessions.Sign([]byte(val)), Path: "/api/auth",
-		MaxAge: int(trustTTL.Seconds()), HttpOnly: true, Secure: s.cfg.SecureCookies, SameSite: http.SameSiteLaxMode,
+		MaxAge: int(trustTTL.Seconds()), HttpOnly: true, Secure: s.sessions.Secure(r), SameSite: http.SameSiteLaxMode,
 	})
 }
 

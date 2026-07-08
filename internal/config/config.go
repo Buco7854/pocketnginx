@@ -94,9 +94,11 @@ type Config struct {
 	WebAuthnRPID    string
 	WebAuthnOrigins []string
 
-	SessionSecret  string
-	SessionTTL     time.Duration
-	SecureCookies  bool
+	SessionSecret string
+	SessionTTL    time.Duration
+	// CookieSecure is the Secure-flag policy for auth cookies: "auto"
+	// (mirror the request scheme), "always", or "never".
+	CookieSecure   string
 	TrustedProxies []*net.IPNet
 
 	MaxEditSize int64
@@ -151,7 +153,7 @@ func Load() (*Config, error) {
 		WebAuthnOrigins: splitList(env("LN_WEBAUTHN_ORIGINS", "")),
 
 		SessionSecret: env("LN_SESSION_SECRET", ""),
-		SecureCookies: envBool("LN_SECURE_COOKIES", true),
+		CookieSecure:  cookieSecureMode(env("LN_SECURE_COOKIES", "auto")),
 
 		MaxEditSize: envInt64("LN_MAX_EDIT_SIZE", 2<<20),
 	}
@@ -225,6 +227,20 @@ func env(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// cookieSecureMode normalises LN_SECURE_COOKIES to "always", "never" or
+// "auto". Booleans (true/false, 1/0) map to always/never for compatibility;
+// anything else, including the default, is auto.
+func cookieSecureMode(v string) string {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "true", "1", "yes", "always":
+		return "always"
+	case "false", "0", "no", "never":
+		return "never"
+	default:
+		return "auto"
+	}
 }
 
 func envBool(key string, def bool) bool {

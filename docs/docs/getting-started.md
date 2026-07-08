@@ -43,12 +43,18 @@ lives, and running behind a proxy.
 
 ## Reaching the UI from another machine
 
-Port 9000 is bound to `127.0.0.1`, so nothing on your network hits the UI
-directly. To reach it, do one of:
+:::warning The UI is not exposed by default
+Port 9000 is bound to `127.0.0.1`, so nothing on your network reaches the UI
+until you expose it. Do one of the two options below, or the UI stays
+localhost-only.
+:::
 
-- **Expose 9000 directly.** Set `UI_BIND=0.0.0.0` in the compose. Over plain
-  HTTP also set `LN_SECURE_COOKIES=false`, or the `Secure`-flagged login cookie
-  never sticks and you loop on the login page.
+Cookies default to `auto`: the `Secure` flag follows the request scheme, so one
+instance works over plain HTTP on the LAN and HTTPS from a front proxy at the
+same time, with no env change.
+
+- **Expose 9000 directly.** Set `UI_BIND=0.0.0.0` in the compose and browse
+  `http://<host>:9000` from your LAN.
 - **Copy a proxy vhost into `conf.d`.** Two examples ship in the image at
   `/usr/share/lightngx/examples/`. The HTTP one answers private-network
   addresses only on `:9001`; publish that port (uncomment `- "9001:9001"`) and
@@ -56,7 +62,7 @@ directly. To reach it, do one of:
 
 <CodeBlock language="nginx" title="conf.d/lightngx.conf (HTTP, LAN only)">{uiProxy}</CodeBlock>
 
-The HTTPS one terminates TLS, so it keeps `LN_SECURE_COOKIES=true`:
+The HTTPS one terminates TLS. Set your domain and certificate paths first:
 
 <CodeBlock language="nginx" title="conf.d/lightngx.conf (HTTPS)">{uiProxyTls}</CodeBlock>
 
@@ -117,9 +123,10 @@ location / {
 }
 ```
 
-Terminate TLS at the proxy, keep `LN_SECURE_COOKIES=true`, and set
-`LN_TRUSTED_PROXIES` to the proxy address so forwarded client IPs are trusted
-for audit logs and rate limiting. See [Security](./security.md) for the details.
+Terminate TLS at the proxy and set `LN_TRUSTED_PROXIES` to the proxy address so
+forwarded client IPs (and, on a separate proxy, the forwarded scheme) are
+trusted for audit logs, rate limiting and the `auto` cookie policy. See
+[Security](./security.md) for the details.
 
 WebAuthn needs a stable hostname. It works when you reach the UI directly or
 through a proxy that preserves the `Host` header, but not over a bare IP

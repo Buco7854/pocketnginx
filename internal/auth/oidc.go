@@ -24,7 +24,6 @@ type OIDC struct {
 	verifier    *oidc.IDTokenVerifier
 	oauth       oauth2.Config
 	sessions    *Sessions
-	secure      bool
 	allowGroups []string
 	groupsClaim string
 	adminGroups []string
@@ -48,7 +47,7 @@ type OIDCOptions struct {
 	UserInfoURL string
 }
 
-func NewOIDC(ctx context.Context, opts OIDCOptions, sessions *Sessions, secure bool) (*OIDC, error) {
+func NewOIDC(ctx context.Context, opts OIDCOptions, sessions *Sessions) (*OIDC, error) {
 	var provider *oidc.Provider
 	if opts.AuthURL != "" {
 		provider = (&oidc.ProviderConfig{
@@ -76,7 +75,6 @@ func NewOIDC(ctx context.Context, opts OIDCOptions, sessions *Sessions, secure b
 			Scopes:       opts.Scopes,
 		},
 		sessions:    sessions,
-		secure:      secure,
 		allowGroups: opts.AllowedGroups,
 		groupsClaim: opts.GroupsClaim,
 		adminGroups: opts.AdminGroups,
@@ -105,7 +103,7 @@ func (o *OIDC) Begin(w http.ResponseWriter, r *http.Request) {
 		Path:     "/api/auth/oidc",
 		MaxAge:   600,
 		HttpOnly: true,
-		Secure:   o.secure,
+		Secure:   o.sessions.Secure(r),
 		SameSite: http.SameSiteLaxMode,
 	})
 	url := o.oauth.AuthCodeURL(st.State,
@@ -124,7 +122,7 @@ func (o *OIDC) Callback(w http.ResponseWriter, r *http.Request) (string, bool, e
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name: oidcStateCookie, Value: "", Path: "/api/auth/oidc", MaxAge: -1,
-		HttpOnly: true, Secure: o.secure, SameSite: http.SameSiteLaxMode,
+		HttpOnly: true, Secure: o.sessions.Secure(r), SameSite: http.SameSiteLaxMode,
 	})
 	payload, err := o.sessions.verify(cookie.Value)
 	if err != nil {

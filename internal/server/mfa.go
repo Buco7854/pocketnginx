@@ -23,7 +23,7 @@ func (s *Server) localSession(w http.ResponseWriter, r *http.Request) (*auth.Ses
 
 // upgradeAfterMFA raises the current session to full once a partial
 // (mfa/enroll) session has satisfied its requirement, keeping the same sid.
-func (s *Server) upgradeAfterMFA(w http.ResponseWriter, sess *auth.Session) error {
+func (s *Server) upgradeAfterMFA(w http.ResponseWriter, r *http.Request, sess *auth.Session) error {
 	u, err := s.accounts.Store().GetUser(sess.UserID)
 	if err != nil {
 		return err
@@ -31,7 +31,7 @@ func (s *Server) upgradeAfterMFA(w http.ResponseWriter, sess *auth.Session) erro
 	if err := s.accounts.Store().UpgradeSession(sess.Sid, auth.LevelFull, s.sessions.TTLFor(auth.LevelFull)); err != nil {
 		return err
 	}
-	return s.sessions.Issue(w, auth.Session{
+	return s.sessions.Issue(w, r, auth.Session{
 		UserID: u.ID, User: u.Username, Role: u.Role, Method: "local", Level: auth.LevelFull, Sid: sess.Sid,
 	})
 }
@@ -69,7 +69,7 @@ func (s *Server) handleVerifyTOTP(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = s.accounts.Store().SetTOTPLastUsed(sess.UserID, matched)
 	s.limiter.Reset(ip)
-	if err := s.upgradeAfterMFA(w, sess); err != nil {
+	if err := s.upgradeAfterMFA(w, r, sess); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "session error"})
 		return
 	}
@@ -85,14 +85,14 @@ const (
 	waCookieReg   = "ln_wa_reg"
 )
 
-func (s *Server) setWACookie(w http.ResponseWriter, name string, sd *webauthnx.SessionData) error {
+func (s *Server) setWACookie(w http.ResponseWriter, r *http.Request, name string, sd *webauthnx.SessionData) error {
 	payload, err := json.Marshal(sd)
 	if err != nil {
 		return err
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name: name, Value: s.sessions.Sign(payload), Path: "/api", MaxAge: 300,
-		HttpOnly: true, Secure: s.cfg.SecureCookies, SameSite: http.SameSiteLaxMode,
+		HttpOnly: true, Secure: s.sessions.Secure(r), SameSite: http.SameSiteLaxMode,
 	})
 	return nil
 }
@@ -104,7 +104,7 @@ func (s *Server) readWACookie(w http.ResponseWriter, r *http.Request, name strin
 		return nil, false
 	}
 	http.SetCookie(w, &http.Cookie{Name: name, Value: "", Path: "/api", MaxAge: -1,
-		HttpOnly: true, Secure: s.cfg.SecureCookies, SameSite: http.SameSiteLaxMode})
+		HttpOnly: true, Secure: s.sessions.Secure(r), SameSite: http.SameSiteLaxMode})
 	payload, err := s.sessions.Unsign(c.Value)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad challenge"})
@@ -137,7 +137,7 @@ func (s *Server) handleVerifyWebAuthnBegin(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	if err := s.setWACookie(w, waCookieLogin, sd); err != nil {
+	if err := s.setWACookie(w, r, waCookieLogin, sd); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "session error"})
 		return
 	}
@@ -167,7 +167,7 @@ func (s *Server) handleVerifyWebAuthnFinish(w http.ResponseWriter, r *http.Reque
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "verification failed"})
 		return
 	}
-	if err := s.upgradeAfterMFA(w, sess); err != nil {
+	if err := s.upgradeAfterMFA(w, r, sess); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "session error"})
 		return
 	}
@@ -243,7 +243,7 @@ func (s *Server) handleTOTPConfirm(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = s.accounts.Store().SetTOTPLastUsed(sess.UserID, matched)
 	s.audit(r, "mfa.totp.enrolled", "username", sess.User)
-	s.finishEnrol(w, sess)
+	s.finishEnrol(w, r, sess)
 }
 
 func (s *Server) handleRegisterWebAuthnBegin(w http.ResponseWriter, r *http.Request) {
@@ -261,7 +261,7 @@ func (s *Server) handleRegisterWebAuthnBegin(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	if err := s.setWACookie(w, waCookieReg, sd); err != nil {
+	if err := s.setWACookie(w, r, waCookieReg, sd); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "session error"})
 		return
 	}
@@ -288,14 +288,14 @@ func (s *Server) handleRegisterWebAuthnFinish(w http.ResponseWriter, r *http.Req
 		return
 	}
 	s.audit(r, "mfa.webauthn.enrolled", "username", sess.User)
-	s.finishEnrol(w, sess)
+	s.finishEnrol(w, r, sess)
 }
 
 // finishEnrol upgrades a forced-enrolment session to full; a profile
 // (already-full) session is left as-is.
-func (s *Server) finishEnrol(w http.ResponseWriter, sess *auth.Session) {
+func (s *Server) finishEnrol(w http.ResponseWriter, r *http.Request, sess *auth.Session) {
 	if sess.Level == auth.LevelEnroll {
-		if err := s.upgradeAfterMFA(w, sess); err != nil {
+		if err := s.upgradeAfterMFA(w, r, sess); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "session error"})
 			return
 		}

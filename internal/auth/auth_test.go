@@ -7,13 +7,16 @@ import (
 	"time"
 )
 
+// insecure is a SecureFunc that never sets the Secure flag, for tests.
+func insecure(*http.Request) bool { return false }
+
 func TestSessionRoundTrip(t *testing.T) {
-	s := NewSessions([]byte("0123456789abcdef0123456789abcdef"), time.Hour, false)
+	s := NewSessions([]byte("0123456789abcdef0123456789abcdef"), time.Hour, insecure)
 	rec := httptest.NewRecorder()
-	if err := s.Issue(rec, Session{User: "alice", Method: "local", Level: LevelFull}); err != nil {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	if err := s.Issue(rec, req, Session{User: "alice", Method: "local", Level: LevelFull}); err != nil {
 		t.Fatal(err)
 	}
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	for _, c := range rec.Result().Cookies() {
 		req.AddCookie(c)
 	}
@@ -27,9 +30,9 @@ func TestSessionRoundTrip(t *testing.T) {
 }
 
 func TestSessionTampered(t *testing.T) {
-	s := NewSessions([]byte("0123456789abcdef0123456789abcdef"), time.Hour, false)
+	s := NewSessions([]byte("0123456789abcdef0123456789abcdef"), time.Hour, insecure)
 	rec := httptest.NewRecorder()
-	_ = s.Issue(rec, Session{User: "alice", Method: "local", Level: LevelFull})
+	_ = s.Issue(rec, httptest.NewRequest(http.MethodGet, "/", nil), Session{User: "alice", Method: "local", Level: LevelFull})
 	c := rec.Result().Cookies()[0]
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -38,7 +41,7 @@ func TestSessionTampered(t *testing.T) {
 		t.Error("tampered token accepted")
 	}
 
-	other := NewSessions([]byte("ffffffffffffffffffffffffffffffff"), time.Hour, false)
+	other := NewSessions([]byte("ffffffffffffffffffffffffffffffff"), time.Hour, insecure)
 	req2 := httptest.NewRequest(http.MethodGet, "/", nil)
 	req2.AddCookie(c)
 	if _, err := other.FromRequest(req2); err == nil {
@@ -47,9 +50,9 @@ func TestSessionTampered(t *testing.T) {
 }
 
 func TestSessionExpiry(t *testing.T) {
-	s := NewSessions([]byte("0123456789abcdef0123456789abcdef"), -time.Minute, false)
+	s := NewSessions([]byte("0123456789abcdef0123456789abcdef"), -time.Minute, insecure)
 	rec := httptest.NewRecorder()
-	_ = s.Issue(rec, Session{User: "alice", Method: "local", Level: LevelFull})
+	_ = s.Issue(rec, httptest.NewRequest(http.MethodGet, "/", nil), Session{User: "alice", Method: "local", Level: LevelFull})
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	for _, c := range rec.Result().Cookies() {
 		req.AddCookie(c)
