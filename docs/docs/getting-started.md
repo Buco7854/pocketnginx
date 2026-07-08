@@ -1,3 +1,8 @@
+import CodeBlock from "@theme/CodeBlock";
+import lightCompose from "!!raw-loader!@site/../docker-compose.yml";
+import lightEnv from "!!raw-loader!@site/../.env.example";
+import fullCompose from "!!raw-loader!@site/../example/full/docker-compose.yml";
+
 # Getting started
 
 The quickest way to run Lightngx is with Docker Compose.
@@ -10,6 +15,19 @@ docker compose up -d
 
 Open the UI on **port 9000**. On the first run it shows a setup page where you
 create the first administrator.
+
+This is the `docker-compose.yml` those commands use. Every setting reads from
+an environment variable with a sensible default, so an untouched copy just
+works and `.env` only holds what you change.
+
+<CodeBlock language="yaml" title="docker-compose.yml">{lightCompose}</CodeBlock>
+
+<details>
+<summary>The matching <code>.env.example</code></summary>
+
+<CodeBlock language="ini" title=".env.example">{lightEnv}</CodeBlock>
+
+</details>
 
 ## Light or full image
 

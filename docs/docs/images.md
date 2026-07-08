@@ -1,3 +1,7 @@
+import CodeBlock from "@theme/CodeBlock";
+import fullCompose from "!!raw-loader!@site/../example/full/docker-compose.yml";
+import fullEnv from "!!raw-loader!@site/../example/full/.env.example";
+
 # Light and full images
 
 One Dockerfile builds two flavours, selected with `--target`.
@@ -63,51 +67,23 @@ Lightngx ships no gate lua and seeds nothing for it.
 ## Example stack
 
 A full-image reverse proxy with the CrowdSec bouncer wired up. CrowdSec
-itself (the LAPI and its database) runs alongside; Lightngx registers as a
-bouncer with the key you generate. This is a trimmed version of a working
-homelab stack; add a firewall bouncer, a CrowdSec dashboard or a cert
-manager as you see fit.
+itself (the LAPI and its Postgres database) runs alongside; Lightngx registers
+as a bouncer with the key you generate. This is a trimmed version of a working
+homelab stack; add a firewall bouncer, a CrowdSec dashboard or a cert manager
+as you see fit. It lives in the repo at
+[`example/full/`](https://github.com/buco7854/lightngx/tree/main/example/full).
 
-```yaml
-services:
-  nginx:
-    image: ghcr.io/buco7854/lightngx:full
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "127.0.0.1:9000:9000"   # management UI, reach it via a vhost or tunnel
-    volumes:
-      - ./nginx/conf:/etc/nginx
-      - ./nginx/lightngx:/var/lib/lightngx   # keep this: users, sessions, keys
-      - /var/log/nginx:/var/log/nginx
-      - /etc/ssl/domains:/etc/ssl/domains:ro
-    environment:
-      - LN_TRUSTED_PROXIES=127.0.0.1
-      - LN_SESSION_SECRET=${LN_SESSION_SECRET}
-      - CROWDSEC_LAPI_URL=http://crowdsec:8080
-      - CROWDSEC_LAPI_KEY=${CROWDSEC_BOUNCER_API_KEY}   # turns the bouncer on
+<CodeBlock language="yaml" title="example/full/docker-compose.yml">{fullCompose}</CodeBlock>
 
-  crowdsec:
-    image: crowdsecurity/crowdsec:latest
-    restart: unless-stopped
-    environment:
-      - COLLECTIONS=crowdsecurity/nginx crowdsecurity/http-cve crowdsecurity/appsec-virtual-patching
-      - BOUNCER_KEY_nginx=${CROWDSEC_BOUNCER_API_KEY}   # auto-registers on first boot
-    volumes:
-      - ./crowdsec/conf:/etc/crowdsec
-      - ./crowdsec/data:/var/lib/crowdsec/data
-      - /var/log/nginx:/var/log/nginx:ro
-    ports:
-      - "127.0.0.1:8080:8080"   # LAPI, loopback only
-```
-
-Set `CROWDSEC_BOUNCER_API_KEY` to any random string in an `.env` file;
-CrowdSec registers it on first boot and Lightngx uses the same value to
-authenticate. Everything else about the bouncer (ban and captcha templates,
-the resolver drop-in) is seeded automatically on start. See
+Copy `.env.example` to `.env` and fill the three required secrets; everything
+else has a default. The bouncer key is any random string CrowdSec registers on
+first boot, and Lightngx authenticates with the same value. Everything else
+about the bouncer (ban and captcha templates, the resolver drop-in) is seeded
+automatically on start. See
 [Configuration](./configuration.md#crowdsec-full-image) for the two CrowdSec
 variables.
+
+<CodeBlock language="ini" title="example/full/.env.example">{fullEnv}</CodeBlock>
 
 To automate certificates, point a cert manager (Certbot, CertWarden, acme.sh,
 …) at your certificate directory and have it reload nginx through a scoped

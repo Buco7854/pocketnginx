@@ -1,0 +1,86 @@
+# Full-image reverse proxy with the CrowdSec bouncer enabled.
+# Copy .env.example to .env, fill the required values, then:
+#   docker compose up -d
+
+services:
+  nginx:
+    image: ghcr.io/buco7854/lightngx:full
+    container_name: nginx
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ulimits:
+      nofile:
+        soft: 131072
+        hard: 131072
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${UI_BIND:-127.0.0.1}:${UI_PORT:-9000}:9000"   # management UI
+    volumes:
+      - "${NGINX_CONF_DIR:-./nginx/conf}:/etc/nginx"       # seeded if empty
+      - "${NGINX_LOG_DIR:-/var/log/nginx}:/var/log/nginx"
+      - "${DATA_DIR:-./lightngx}:/var/lib/lightngx"        # keep this volume
+      - "${CERT_DIR:-/etc/ssl/domains}:${CERT_DIR:-/etc/ssl/domains}:ro"
+    environment:
+      - TZ=${TZ:-UTC}
+      - LN_SECURE_COOKIES=${LN_SECURE_COOKIES:-true}
+      - LN_TRUSTED_PROXIES=${LN_TRUSTED_PROXIES:-127.0.0.1}
+      - LN_SESSION_SECRET=${LN_SESSION_SECRET:?set a 32+ character secret in .env}
+      - LN_ADMIN_USER=${LN_ADMIN_USER:-}
+      - LN_ADMIN_PASSWORD_HASH=${LN_ADMIN_PASSWORD_HASH:-}
+      # A key turns the CrowdSec bouncer on; it is shared with the LAPI below.
+      - CROWDSEC_LAPI_URL=${CROWDSEC_LAPI_URL:-http://crowdsec:8080}
+      - CROWDSEC_LAPI_KEY=${CROWDSEC_BOUNCER_KEY:?generate a shared bouncer key}
+    depends_on:
+      - crowdsec
+    networks: [proxy]
+
+  crowdsec:
+    image: crowdsecurity/crowdsec:latest
+    container_name: crowdsec
+    restart: unless-stopped
+    depends_on:
+      crowdsec-db:
+        condition: service_healthy
+    environment:
+      - TZ=${TZ:-UTC}
+      - COLLECTIONS=${CROWDSEC_COLLECTIONS:-crowdsecurity/nginx crowdsecurity/http-cve crowdsecurity/appsec-virtual-patching}
+      - BOUNCER_KEY_nginx=${CROWDSEC_BOUNCER_KEY:?generate a shared bouncer key}
+      - DB_TYPE=postgresql
+      - DB_HOST=crowdsec-db
+      - DB_PORT=5432
+      - DB_NAME=${CROWDSEC_DB_NAME:-crowdsec}
+      - DB_USER=${CROWDSEC_DB_USER:-crowdsec}
+      - DB_PASSWORD=${CROWDSEC_DB_PASSWORD:?set a database password}
+    volumes:
+      - "${CROWDSEC_CONF_DIR:-./crowdsec/conf}:/etc/crowdsec"
+      - "${CROWDSEC_DATA_DIR:-./crowdsec/data}:/var/lib/crowdsec/data"
+      - "${NGINX_LOG_DIR:-/var/log/nginx}:/var/log/nginx:ro"
+    expose:
+      - "8080"   # LAPI, compose network only
+    networks: [proxy]
+
+  crowdsec-db:
+    image: postgres:18-trixie
+    container_name: crowdsec-db
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - TZ=${TZ:-UTC}
+      - POSTGRES_DB=${CROWDSEC_DB_NAME:-crowdsec}
+      - POSTGRES_USER=${CROWDSEC_DB_USER:-crowdsec}
+      - POSTGRES_PASSWORD=${CROWDSEC_DB_PASSWORD:?set a database password}
+    volumes:
+      - "${CROWDSEC_DB_DIR:-./crowdsec/db}:/var/lib/postgresql"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CROWDSEC_DB_USER:-crowdsec} -d ${CROWDSEC_DB_NAME:-crowdsec}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [proxy]
+
+networks:
+  proxy:
+    driver: bridge

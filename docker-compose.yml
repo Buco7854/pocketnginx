@@ -22,6 +22,7 @@ services:
     environment:
       - TZ=${TZ:-UTC}
       - LN_SECURE_COOKIES=${LN_SECURE_COOKIES:-true}
+      - LN_SESSION_SECRET=${LN_SESSION_SECRET:-}
       - LN_SESSION_TTL=${LN_SESSION_TTL:-12h}
       - LN_TRUSTED_PROXIES=${LN_TRUSTED_PROXIES:-}
       - LN_SITES=${LN_SITES:-true}
