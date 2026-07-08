@@ -93,10 +93,11 @@ export function useFileEditor(onAuthLost: () => void) {
         // Conflict: the file changed on disk. The buffer is kept either
         // way; overwriting retries without the base hash.
         if (!(err instanceof ApiError && err.status === 409)) throw err;
+        const gone = err.gone === true;
         const overwrite = await ask({
-          title: t.conflictTitle,
-          message: t.conflictMessage,
-          confirmLabel: t.overwrite,
+          title: gone ? t.goneTitle : t.conflictTitle,
+          message: gone ? t.goneMessage : t.conflictMessage,
+          confirmLabel: gone ? t.createFile : t.overwrite,
           danger: true,
         });
         if (!overwrite) return;

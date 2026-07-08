@@ -14,6 +14,10 @@ const en = {
   conflictMessage:
     "Someone else saved this file after you opened it. Overwrite it with your version? Cancel keeps your edits in the editor, so you can copy them and reopen the file to see the latest version.",
   overwrite: "Overwrite",
+  goneTitle: "File no longer exists",
+  goneMessage:
+    "This file was deleted or renamed after you opened it. Saving now creates a new file at the original path with your version. Cancel keeps your edits in the editor so you can copy them.",
+  createFile: "Create file",
   or: "or",
   loginFailed: "Invalid credentials",
   tooManyAttempts: "Too many attempts, try again later",
@@ -247,6 +251,10 @@ const fr: typeof en = {
   conflictMessage:
     "Quelqu'un d'autre a enregistré ce fichier après son ouverture. L'écraser avec votre version ? Annuler conserve vos modifications dans l'éditeur : vous pouvez les copier puis rouvrir le fichier pour voir la dernière version.",
   overwrite: "Écraser",
+  goneTitle: "Le fichier n'existe plus",
+  goneMessage:
+    "Ce fichier a été supprimé ou renommé après son ouverture. Enregistrer maintenant crée un nouveau fichier au chemin d'origine avec votre version. Annuler conserve vos modifications dans l'éditeur pour que vous puissiez les copier.",
+  createFile: "Créer le fichier",
   or: "ou",
   loginFailed: "Identifiants invalides",
   tooManyAttempts: "Trop de tentatives, réessayez plus tard",

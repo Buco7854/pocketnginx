@@ -360,6 +360,12 @@ func (s *Server) handleWriteFile(w http.ResponseWriter, r *http.Request) {
 	// baseHash overwrites unconditionally.
 	if req.BaseHash != "" {
 		current, err := s.conf.Read(req.Path)
+		if errors.Is(err, fs.ErrNotExist) {
+			writeJSON(w, http.StatusConflict, map[string]any{
+				"error": "file no longer exists (deleted or renamed since it was opened)",
+				"gone":  true})
+			return
+		}
 		if err != nil || contentHash(current) != req.BaseHash {
 			writeJSON(w, http.StatusConflict, map[string]string{
 				"error": "file changed on disk since it was opened"})

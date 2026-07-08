@@ -3,10 +3,12 @@ import type { WebAuthnCreateOptions, WebAuthnGetOptions } from "./webauthn";
 export class ApiError extends Error {
   status: number;
   output?: string;
-  constructor(status: number, message: string, output?: string) {
+  gone?: boolean;
+  constructor(status: number, message: string, output?: string, gone?: boolean) {
     super(message);
     this.status = status;
     this.output = output;
+    this.gone = gone;
   }
 }
 
@@ -19,7 +21,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isJSON = res.headers.get("Content-Type")?.includes("application/json");
   const body = isJSON ? await res.json() : null;
   if (!res.ok) {
-    throw new ApiError(res.status, body?.error ?? res.statusText, body?.output);
+    throw new ApiError(res.status, body?.error ?? res.statusText, body?.output, body?.gone);
   }
   return body as T;
 }
