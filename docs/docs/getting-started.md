@@ -53,8 +53,11 @@ Cookies default to `auto`: the `Secure` flag follows the request scheme, so one
 instance works over plain HTTP on the LAN and HTTPS from a front proxy at the
 same time, with no env change.
 
-- **Expose 9000 directly.** Set `UI_BIND=0.0.0.0` in the compose and browse
-  `http://<host>:9000` from your LAN.
+- **Expose 9000 directly (local HTTP only).** Set `UI_BIND=0.0.0.0` in the
+  compose and browse `http://<host>:9000` from your LAN. Do not put an external
+  HTTPS proxy in front of this port: the app then can't tell the request was
+  HTTPS and leaves the session cookie non-`Secure`. For any remote or HTTPS
+  access, use the reverse-proxy option below instead.
 - **Copy a proxy vhost into `conf.d`.** Two examples ship in the image at
   `/usr/share/lightngx/examples/`. The HTTP one answers private-network
   addresses only on `:9001`; publish that port (uncomment `- "9001:9001"`) and

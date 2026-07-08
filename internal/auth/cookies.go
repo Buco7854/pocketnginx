@@ -1,9 +1,11 @@
 package auth
 
 import (
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 // NewSecureFunc builds the per-request Secure-flag policy for auth cookies.
@@ -24,18 +26,36 @@ func NewSecureFunc(mode string, trusted []*net.IPNet) SecureFunc {
 	case "never":
 		return func(*http.Request) bool { return false }
 	}
+	var warnOnce sync.Once
 	return func(r *http.Request) bool {
 		if peerTrusted(r, trusted) {
 			if xf := r.Header.Get("X-Forwarded-Proto"); xf != "" {
-				proto := xf
-				if i := strings.IndexByte(proto, ','); i >= 0 {
-					proto = proto[:i]
-				}
-				return strings.EqualFold(strings.TrimSpace(proto), "https")
+				return forwardedHTTPS(xf)
 			}
+		}
+		// An untrusted peer presenting HTTPS is the separate-proxy case: we
+		// can't believe the header, so the cookie stays non-Secure. Expose
+		// :9000 directly only for local HTTP; front any other access with the
+		// bundled nginx, or set LN_TRUSTED_PROXIES to the proxy.
+		if r.TLS == nil && forwardedHTTPS(r.Header.Get("X-Forwarded-Proto")) {
+			warnOnce.Do(func() {
+				slog.Warn("auto cookies: HTTPS request via an untrusted proxy, cookie left non-Secure; put the UI behind the bundled nginx or set LN_TRUSTED_PROXIES (direct :9000 is for local HTTP only)")
+			})
 		}
 		return r.TLS != nil
 	}
+}
+
+// forwardedHTTPS reports whether an X-Forwarded-Proto value (possibly a
+// comma-separated chain) names https in its first hop.
+func forwardedHTTPS(xf string) bool {
+	if xf == "" {
+		return false
+	}
+	if i := strings.IndexByte(xf, ','); i >= 0 {
+		xf = xf[:i]
+	}
+	return strings.EqualFold(strings.TrimSpace(xf), "https")
 }
 
 // peerTrusted reports whether the direct peer is loopback or a configured
