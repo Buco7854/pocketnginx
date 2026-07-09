@@ -1,20 +1,21 @@
 # Choosing a setup
 
-Lightngx runs three ways. Start light and add the next layer only when you need
-it; each builds on the one before.
+Lightngx ships as two images, **light** and **full**, built from one Dockerfile.
+The **hardened** setup is the full image with an nginx-level auth gate in front
+of the UI. Here is what each has; pick the one that fits.
 
-| Setup | Image | Adds | Pick it when |
+| Setup | Image | What it has | Good for |
 | --- | --- | --- | --- |
-| [Light](./light.md) | `:latest` (`:light`) | nginx plus the Lightngx UI, nothing else | Most setups. Smallest image, plain reverse-proxy management |
-| [Full](./full.md) | `:full` | An in-nginx CrowdSec WAF bouncer, traffic stats (VTS), and the lua runtime (`lua-resty-openidc`) for nginx-side auth gates | You want a WAF, traffic stats, or OIDC/TOTP gates in front of upstreams |
-| [Hardened](./hardened.md) | `:full` plus a gate | Everything in full, plus an nginx-level OIDC/TOTP gate in front of the Lightngx login itself | You expose the UI to the internet and want a wall before the app |
+| [Light](./light.md) | `:latest` (`:light`) | nginx plus the Lightngx UI, and nothing else | Plain reverse-proxy management. The smallest image |
+| [Full](./full.md) | `:full` | Everything in light, plus an in-nginx CrowdSec WAF bouncer, traffic stats (VTS), and the lua runtime (`lua-resty-openidc`) for nginx-side auth gates | A WAF, traffic stats, or OIDC/TOTP gates in front of your upstreams |
+| [Hardened](./hardened.md) | `:full` with a gate | The full image, with an OIDC/TOTP gate in front of the Lightngx login itself | Exposing the UI to the internet behind a second wall |
 
-## What the full image adds
+## What the full image includes
 
-The full image is built from one Dockerfile with `--target full`. There is no
-on/off switch for the extras: each turns on from its own required input, and on
-the light image those inputs simply warn and do nothing, so a misapplied
-variable can never break nginx.
+The light and full images are one Dockerfile with different `--target`s. There
+is no on/off switch for the full extras: each turns on from its own required
+input, and on the light image those inputs simply warn and do nothing, so a
+misapplied variable can never break nginx.
 
 - **CrowdSec bouncer** — an in-nginx WAF that bans bad actors at the edge. Turns
   on when you set `CROWDSEC_LAPI_KEY`.
@@ -24,9 +25,9 @@ variable can never break nginx.
   dependency tree on the lua path, so a `rewrite_by_lua_block` gate works with no
   extra wiring.
 
-The [Full setup](./full.md) wires up CrowdSec and shows the VTS and gate
-extras. The [Hardened setup](./hardened.md) uses that gate runtime to put an
-OIDC/TOTP check in front of the Lightngx UI itself.
+The [Full setup](./full.md) wires up CrowdSec and shows the VTS and gate extras.
+The [Hardened setup](./hardened.md) uses that gate runtime to put an OIDC/TOTP
+check in front of the Lightngx UI itself.
 
 ## Not using Docker?
 

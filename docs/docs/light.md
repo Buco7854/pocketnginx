@@ -7,9 +7,9 @@ import uiProxyTls from "!!raw-loader!@site/../docker/ui-proxy-tls.conf";
 # Light setup
 
 The light image is nginx plus the Lightngx UI: the smallest stack, for plain
-reverse-proxy management. It is the baseline the [full](./full.md) and
-[hardened](./hardened.md) setups build on; [Choosing a setup](./setups.md)
-compares the three. In a hurry, jump to the [one-shot script](#one-shot-setup).
+reverse-proxy management. See [Choosing a setup](./setups.md) for how it
+compares to the full and hardened setups. In a hurry, jump to the
+[one-shot script](#one-shot-setup).
 
 ## Run it
 
