@@ -71,44 +71,42 @@ setup below.
 
 ## Set it up
 
-The flow is: fetch the stack files, start once so the container seeds
-`./nginx/conf` (which is `/etc/nginx`), then save the gate config into that
-seeded directory and reload. Every file is also shown in full below, so you can
-paste it by hand instead of fetching.
+Four steps, each a block you copy in turn: fetch the stack and start it (this
+seeds `./nginx/conf`, which is `/etc/nginx`), install the gate into the seeded
+config, point it at your domain, then reload. Every file is also shown in full,
+so you can paste it by hand instead of fetching.
 
 :::note Already run your own nginx?
-Skip the compose and `.env` and the seeding start (steps 1 and 2), but you still
-need the three gate `*.lua` shown in step 1: put them onto your nginx's lua
-require path (`/usr/local/share/lua/5.1/`, a bind mount or your image). Save the
-rest of the config files under your own `/etc/nginx` instead of `./nginx/conf`,
-run the `:full` image (or your own image built from it, for the lua runtime), and
-use your own `nginx -t && nginx -s reload`. If you do **not** run the CrowdSec
-bouncer, also add `01-gate-resolver.conf` (shown under [Does it
-conflict?](#does-it-conflict-with-the-config-lightngx-seeds)) so the gate has a
-`resolver` and TLS trust; with CrowdSec, its seeded config already provides them
-and nginx rejects duplicates.
+Skip step 1. You still need the three gate `*.lua` on your nginx's lua require
+path (`/usr/local/share/lua/5.1/`, a bind mount or your image) and the `:full`
+image (or your own built from it) for the lua runtime. Save the files from steps
+2-3 under your own `/etc/nginx`, and use `nginx -t && nginx -s reload` (after
+chowning the gate keys to the worker user). Without CrowdSec, also add
+`01-gate-resolver.conf` (see [Does it
+conflict?](#does-it-conflict-with-the-config-lightngx-seeds)) for `resolver` and
+TLS trust; with CrowdSec its seeded config already provides them.
 :::
 
-### 1. Create the compose, env, and gate scripts
+### 1. Fetch the stack and start it
 
-Fetch the stack files into a clean directory. The three gate `*.lua` mount onto
-nginx's lua require path, so they must exist **before** the first start or Docker
-creates empty directories in their place. This fetch puts them where the compose
-expects:
+The gate `*.lua` must exist before the first start (the compose mounts them), so
+fetch everything and generate the secrets, then start:
 
 ```sh
 mkdir lightngx && cd lightngx
 base=https://raw.githubusercontent.com/buco7854/lightngx/main/example/hardened
 curl -fsSL $base/docker-compose.yml -o docker-compose.yml
-curl -fsSL $base/.env.example -o .env
 mkdir -p crowdsec/conf nginx/lua
 curl -fsSL $base/crowdsec/conf/config.yaml.local -o crowdsec/conf/config.yaml.local
 for f in oidc_gate.lua totp_gate.lua totp.lua; do curl -fsSL "$base/nginx/lua/$f" -o "nginx/lua/$f"; done
+{ echo "CROWDSEC_BOUNCER_KEY=$(openssl rand -hex 16)"
+  echo "CROWDSEC_DB_PASSWORD=$(openssl rand -hex 16)"
+  echo "LN_SESSION_SECRET=$(openssl rand -hex 32)"; } > .env
+docker compose up -d
 ```
 
-Then edit `.env`: fill the required secrets (`CROWDSEC_BOUNCER_KEY`,
-`CROWDSEC_DB_PASSWORD`) and set `LN_SESSION_SECRET`. The gate `*.lua` are plain
-lua you own and can edit.
+This seeds `./nginx/conf` and runs nginx without the gate for now. The gate
+`*.lua` are plain lua you own and can edit.
 
 <details>
 <summary>The stack files, to read or paste by hand</summary>
@@ -121,7 +119,7 @@ The compose is the full example plus the three gate `*.lua` mounts:
 
 CrowdSec reads its DB connection from this mounted `config.yaml.local` (the
 image has no `DB_*` env, so without it CrowdSec silently uses SQLite and ignores
-Postgres). It reads the credentials from your `.env`:
+Postgres):
 
 <CodeBlock language="yaml" title="crowdsec/conf/config.yaml.local">{crowdsecLocal}</CodeBlock>
 
@@ -135,138 +133,117 @@ The three gate scripts (under `nginx/lua/`):
 
 </details>
 
-### 2. Start once to seed the config
+### 2. Install the gate into the seeded config
+
+Now `./nginx/conf` exists. Add the gate's shared dictionaries, the gate snippet,
+the public vhost, and the generated key files. Pick one block.
+
+For an **OIDC gate** (authenticate at your IdP, with a TOTP fallback):
 
 ```sh
-docker compose up -d
+base=https://raw.githubusercontent.com/buco7854/lightngx/main/example/hardened
+mkdir -p nginx/conf/conf.d nginx/conf/snippets nginx/conf/gates/totp nginx/conf/gates/oidc
+curl -fsSL $base/conf.d/00-auth-gate.conf              -o nginx/conf/conf.d/00-auth-gate.conf
+curl -fsSL $base/snippets/oidc-gate.conf               -o nginx/conf/snippets/oidc-gate.conf
+curl -fsSL $base/conf.d/10-lightngx-gated.conf.example -o nginx/conf/conf.d/10-lightngx-gated.conf
+head -c 20 /dev/urandom | base32 > nginx/conf/gates/totp/secret         # TOTP fallback secret
+head -c 32 /dev/urandom          > nginx/conf/gates/totp/cookie_key     # signs the gate cookie
+head -c 32 /dev/urandom          > nginx/conf/gates/oidc/session_secret # encrypts the OIDC cookie
 ```
 
-The first start seeds `./nginx/conf` (which is `/etc/nginx`). nginx runs without
-the gate for now; you add it in the next steps and reload at the end.
+For a **TOTP-only gate** (no IdP):
 
-### 3. Save the shared dictionaries
+```sh
+base=https://raw.githubusercontent.com/buco7854/lightngx/main/example/hardened
+mkdir -p nginx/conf/conf.d nginx/conf/snippets nginx/conf/gates/totp
+curl -fsSL $base/conf.d/00-auth-gate.conf              -o nginx/conf/conf.d/00-auth-gate.conf
+curl -fsSL $base/snippets/totp-gate.conf               -o nginx/conf/snippets/totp-gate.conf
+curl -fsSL $base/conf.d/10-lightngx-gated.conf.example -o nginx/conf/conf.d/10-lightngx-gated.conf
+head -c 20 /dev/urandom | base32 > nginx/conf/gates/totp/secret       # shared TOTP secret
+head -c 32 /dev/urandom          > nginx/conf/gates/totp/cookie_key   # signs the gate cookie
+```
 
-Save this as `nginx/conf/conf.d/00-auth-gate.conf`. It declares the gate's shared
-memory and belongs in the http context, so it goes in `conf.d/`:
+<details>
+<summary>The gate config files, to read or paste by hand</summary>
+
+`00-auth-gate.conf` declares the gate's shared memory (http context, so `conf.d/`):
 
 <CodeBlock language="nginx" title="nginx/conf/conf.d/00-auth-gate.conf">{gateSetup}</CodeBlock>
 
-### 4. Save the gate snippet
-
-For an **OIDC gate** (with the TOTP fallback), save this as
-`nginx/conf/snippets/oidc-gate.conf`, then set `discovery` and `client_id` for
-your IdP. The snippet's `redirect_uri` is just the path `/__oidc_callback`, which
-lua-resty-openidc expands to `https://<your-host>/__oidc_callback` from the
-request, so there is no domain to hardcode; register that URL as an allowed
-redirect URI at your IdP:
+The OIDC snippet. `redirect_uri` is just the path `/__oidc_callback`, which
+lua-resty-openidc expands to `https://<host>/__oidc_callback` from the request,
+so there is no domain to hardcode; register that URL as an allowed redirect URI
+at your IdP:
 
 <CodeBlock language="nginx" title="nginx/conf/snippets/oidc-gate.conf">{oidcSnippet}</CodeBlock>
 
-For a **TOTP-only gate**, save this as `nginx/conf/snippets/totp-gate.conf`
-instead. It needs no IdP and no `gates/oidc/` files:
+The TOTP snippet (self-contained, no IdP):
 
 <CodeBlock language="nginx" title="nginx/conf/snippets/totp-gate.conf">{totpSnippet}</CodeBlock>
 
-### 5. Create the key files
+The public vhost, which `include`s the gate:
 
-The TOTP gate, and the OIDC gate's fallback, read two files from
-`nginx/conf/gates/totp/`. These are generated, so run:
+<CodeBlock language="nginx" title="nginx/conf/conf.d/10-lightngx-gated.conf">{gatedVhost}</CodeBlock>
+
+</details>
+
+### 3. Point the gate at your domain
+
+Edit these before reloading:
+
+- **`nginx/conf/conf.d/10-lightngx-gated.conf`** — set `server_name` and the
+  `ssl_certificate` paths to your domain and certificates. For a **TOTP-only**
+  gate, also change its `include` line to `snippets/totp-gate.conf`.
+- **OIDC only** — in `nginx/conf/snippets/oidc-gate.conf` set `discovery` and
+  `client_id` for your IdP, then save the client secret it issued:
 
 ```sh
-mkdir -p nginx/conf/gates/totp
-head -c 20 /dev/urandom | base32 > nginx/conf/gates/totp/secret       # the shared TOTP secret
-head -c 32 /dev/urandom          > nginx/conf/gates/totp/cookie_key   # signs the gate's session cookie
+printf '%s' 'YOUR_OIDC_CLIENT_SECRET' > nginx/conf/gates/oidc/client_secret
 ```
 
-Enroll the secret in your authenticator app (Aegis, Google Authenticator,
-1Password, …) with this URI, pasting the string from the `secret` file:
+Enroll the TOTP secret in your authenticator app (Aegis, Google Authenticator,
+1Password, …), pasting the string from `nginx/conf/gates/totp/secret`:
 
 ```
 otpauth://totp/Lightngx?secret=<the base32 secret>&issuer=Lightngx
 ```
 
-For the **OIDC gate**, also create its two keys in `nginx/conf/gates/oidc/` (skip
-for a TOTP-only gate):
+For a LAN shortcut past the gate, copy `/usr/share/lightngx/examples/ui-proxy.conf`
+into `conf.d`: a private-network proxy to the UI on `:9001`, on a different port.
+
+### 4. Reload
 
 ```sh
-mkdir -p nginx/conf/gates/oidc
-printf '%s' 'YOUR_OIDC_CLIENT_SECRET' > nginx/conf/gates/oidc/client_secret   # the secret your IdP issued
-head -c 32 /dev/urandom > nginx/conf/gates/oidc/session_secret                # encrypts the OIDC session cookie
+docker compose exec nginx nginx -t   # check the config first
+docker compose restart nginx         # owns /etc/nginx as the worker user, then loads the gate
 ```
 
-### 6. Let the worker read the keys
+The restart chowns `/etc/nginx` to the nginx **worker** user (so the workers can
+read the gate keys) and loads the gate in one step. Browse your domain: you now
+pass the IdP (or a TOTP code) before you ever reach Lightngx's own login.
 
-The key files must be owned by the user nginx runs its **workers** as (the `user`
-directive in your `nginx.conf`). You do not have to chase that user down: on every
-start the container **owns `/etc/nginx` as the worker user and locks the gate
-dir** for you. So the simplest way to apply it after adding the keys is to restart,
-which in the next step also loads the gate:
+Keep `.env` and everything under `nginx/conf/gates` (the keys) out of any git
+repo; they are secrets.
 
-```sh
-docker compose restart nginx
-```
+<details>
+<summary>Applying the key ownership with a live reload instead of a restart</summary>
 
-If you would rather apply it live (for an `nginx -s reload` instead of a
-restart), do the same chown by hand from a container so the name resolves to the
-right uid:
+The keys must be owned by the user nginx runs its workers as (the `user`
+directive in `nginx.conf`); a restart does this for you. To instead
+`nginx -s reload` without restarting, run the chown by hand from a container so
+the name resolves to the right uid:
 
 ```sh
 docker compose run --rm --no-deps --entrypoint sh nginx \
   -c 'chown -R nginx:nginx /etc/nginx && chmod -R go-rwx /etc/nginx/gates'
+docker compose exec nginx nginx -t && docker compose exec nginx nginx -s reload
 ```
 
 Swap `nginx:nginx` for `www-data:www-data` if that is your `user` directive
-(`grep -E '^\s*user' nginx/conf/nginx.conf`). To turn the automatic ownership off
-entirely, set `LN_FIX_CONFIG_PERMS=false`.
-
-### 7. Gate your public vhost
-
-Save this as `nginx/conf/conf.d/10-lightngx-gated.conf`, then set `server_name`
-and the certificate paths. The line that switches the gate on is
-`include /etc/nginx/snippets/oidc-gate.conf;` (or `totp-gate.conf`):
-
-<CodeBlock language="nginx" title="nginx/conf/conf.d/10-lightngx-gated.conf">{gatedVhost}</CodeBlock>
-
-This is the internet-facing vhost. For a LAN shortcut past the gate, copy
-`/usr/share/lightngx/examples/ui-proxy.conf` into `conf.d`: a private-network
-proxy to the UI on `:9001`, over plain HTTP. It coexists with this gated vhost
-on a different port.
-
-### 8. Restart to apply
-
-Restarting re-runs the ownership step and loads the gate in one go:
-
-```sh
-docker compose exec nginx nginx -t   # optional: check the config first
-docker compose restart nginx
-# your own nginx: sudo nginx -t && sudo nginx -s reload (after chowning the keys)
-```
-
-Browse your domain: you now pass the IdP (or a TOTP code) before you ever reach
-Lightngx's own login.
-
-<details>
-<summary>The shell steps in one block (the .conf files you save by hand)</summary>
-
-```sh
-# The .conf files come from the code blocks above (save each by hand). These are
-# only the generated keys and the restart.
-
-# keys
-mkdir -p nginx/conf/gates/totp nginx/conf/gates/oidc
-head -c 20 /dev/urandom | base32 > nginx/conf/gates/totp/secret
-head -c 32 /dev/urandom          > nginx/conf/gates/totp/cookie_key
-printf '%s' 'YOUR_OIDC_CLIENT_SECRET' > nginx/conf/gates/oidc/client_secret   # OIDC only
-head -c 32 /dev/urandom > nginx/conf/gates/oidc/session_secret                # OIDC only
-
-# restart: the entrypoint owns /etc/nginx as the worker user, then nginx loads the gate
-docker compose exec nginx nginx -t && docker compose restart nginx
-```
+(`grep -E '^\s*user' nginx/conf/nginx.conf`). To turn the automatic ownership
+off, set `LN_FIX_CONFIG_PERMS=false`.
 
 </details>
-
-Keep `.env` and everything under `nginx/conf/gates` (the keys) out of any git
-repo; they are secrets.
 
 ## Custom login and maintenance pages
 

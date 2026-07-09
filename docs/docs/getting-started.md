@@ -11,16 +11,18 @@ Docker Compose.
 
 ## Run it
 
-Create a directory, drop in the compose file, and start it:
+Copy this block into an empty directory. It fetches the compose, sets a session
+secret so logins survive restarts, and starts the stack:
 
 ```sh
 mkdir lightngx && cd lightngx
 curl -fsSL https://raw.githubusercontent.com/buco7854/lightngx/main/example/light/docker-compose.yml -o docker-compose.yml
+echo "LN_SESSION_SECRET=$(openssl rand -hex 32)" > .env
 docker compose up -d
 ```
 
-It runs as-is. **On the machine running it**, open **`http://localhost:9000`**:
-the first visit is a setup page where you create the first administrator.
+**On the machine running it**, open **`http://localhost:9000`**: the first visit
+is a setup page where you create the first administrator.
 
 <details>
 <summary>Prefer to paste the compose by hand? Here it is.</summary>
@@ -31,8 +33,8 @@ the first visit is a setup page where you create the first administrator.
 
 ## Change a setting
 
-Every variable has a sensible default, so the defaults above just work. The
-compose reads a handful from a `.env` beside it; set those there:
+Everything else has a sensible default. The compose reads a few extras from that
+`.env` beside it:
 
 <CodeBlock language="ini" title=".env">{lightEnv}</CodeBlock>
 
@@ -59,15 +61,23 @@ same time, with no env change.
 - **Expose 9000 directly (local HTTP only).** Set `UI_BIND=0.0.0.0` in the
   compose and browse `http://<host>:9000` from your LAN.
 - **Copy a proxy vhost into `conf.d`.** Two examples ship in the image at
-  `/usr/share/lightngx/examples/`. The HTTP one answers private-network
-  addresses only on `:9001`; publish that port (uncomment `- "9001:9001"`) and
-  browse `http://<host>:9001` from your LAN:
+  `/usr/share/lightngx/examples/`: an HTTP one (LAN-only on `:9001`, publish it
+  with `- "9001:9001"`) and an HTTPS one that terminates TLS. Copy one out and
+  reload:
 
-<CodeBlock language="nginx" title="conf.d/lightngx.conf (HTTP, LAN only)">{uiProxy}</CodeBlock>
+```sh
+docker compose cp nginx:/usr/share/lightngx/examples/ui-proxy.conf ./nginx/conf/conf.d/lightngx.conf
+docker compose exec nginx nginx -s reload
+```
 
-The HTTPS one terminates TLS. Set your domain and certificate paths first:
+<details>
+<summary>The two example vhosts</summary>
 
-<CodeBlock language="nginx" title="conf.d/lightngx.conf (HTTPS)">{uiProxyTls}</CodeBlock>
+<CodeBlock language="nginx" title="ui-proxy.conf (HTTP, LAN only, :9001)">{uiProxy}</CodeBlock>
+
+<CodeBlock language="nginx" title="ui-proxy-tls.conf (HTTPS; set your domain + certs)">{uiProxyTls}</CodeBlock>
+
+</details>
 
 :::warning Expose 9000 directly only for local HTTP
 Do not put an external HTTPS proxy straight in front of port 9000: the app

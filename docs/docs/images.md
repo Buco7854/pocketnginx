@@ -84,7 +84,8 @@ LAPI and its Postgres database) runs alongside, and Lightngx registers as a
 bouncer with a key you generate. This is a trimmed working homelab stack; add a
 firewall bouncer, a CrowdSec dashboard or a cert manager as you see fit.
 
-Fetch the three files it needs into a clean directory:
+Copy this block into an empty directory. It fetches the two files the stack
+needs, generates the secrets, and starts everything:
 
 ```sh
 mkdir lightngx && cd lightngx
@@ -92,13 +93,15 @@ base=https://raw.githubusercontent.com/buco7854/lightngx/main/example/full
 curl -fsSL $base/docker-compose.yml -o docker-compose.yml
 mkdir -p crowdsec/conf
 curl -fsSL $base/crowdsec/conf/config.yaml.local -o crowdsec/conf/config.yaml.local
-curl -fsSL $base/.env.example -o .env
+{ echo "CROWDSEC_BOUNCER_KEY=$(openssl rand -hex 16)"
+  echo "CROWDSEC_DB_PASSWORD=$(openssl rand -hex 16)"
+  echo "LN_SESSION_SECRET=$(openssl rand -hex 32)"; } > .env
+docker compose up -d
 ```
 
-Edit `.env` to set the two required secrets, then `docker compose up -d`. The
-bouncer key is any random string; CrowdSec registers it on first boot and
-Lightngx authenticates with the same value. Everything else about the bouncer
-(ban and captcha templates, the resolver drop-in) is seeded on start.
+The bouncer key is shared: CrowdSec registers it on first boot and Lightngx
+authenticates with the same value. Everything else about the bouncer (ban and
+captcha templates, the resolver drop-in) is seeded on start.
 
 <details>
 <summary>The three files, to read or paste by hand</summary>
