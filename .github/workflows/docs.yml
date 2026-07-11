@@ -5,6 +5,11 @@ on:
     branches: [main]
     paths:
       - "docs/**"
+      # The setup pages embed these files via raw-loader; a change to them
+      # must republish the docs.
+      - "example/**"
+      - "docker/ui-proxy.conf"
+      - "docker/ui-proxy-tls.conf"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 

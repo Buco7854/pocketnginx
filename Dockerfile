@@ -303,7 +303,7 @@ COPY --from=assets  /assets/luatree/lib/lua/5.1/   /usr/local/lib/lua/5.1/
 # templates (with pristine copies at /usr/share/crowdsec/lua-templates.dist
 # so an empty bind mount can be re-seeded), bouncer config at
 # /etc/crowdsec/bouncers/. The nginx snippet goes to the integrations dist
-# dir — only seeded into conf.d when LN_CROWDSEC=true.
+# dir — only seeded into conf.d when CROWDSEC_LAPI_KEY is set.
 COPY --from=assets /assets/bouncer /tmp/bouncer
 RUN set -eux; \
     mkdir -p /usr/lib/crowdsec/lua /var/lib/crowdsec/lua/templates \

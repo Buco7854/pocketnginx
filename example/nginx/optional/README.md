@@ -31,7 +31,7 @@ docker build -t lightngx <repo>
 
 ## Custom CrowdSec ban / captcha pages
 
-With `LN_CROWDSEC=true` the stock templates are seeded into
+With `CROWDSEC_LAPI_KEY` set the stock templates are seeded into
 `/var/lib/crowdsec/lua/templates` only when missing - your own files are
 never overwritten. To customize, drop your `ban.html` / `captcha.html`
 into that directory (or its bind mount) and they take precedence.

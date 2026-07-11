@@ -119,7 +119,7 @@ func Load() (*Config, error) {
 
 		DefaultReloadOnSave: envBool("LN_DEFAULT_RELOAD_ON_SAVE", true),
 		FixConfigPerms:      envBool("LN_FIX_CONFIG_PERMS", true),
-		NginxUser:      env("LN_NGINX_USER", ""),
+		NginxUser:           env("LN_NGINX_USER", ""),
 
 		LogPaths: splitPaths(env("LN_LOG_PATHS", "/var/log/nginx")),
 
