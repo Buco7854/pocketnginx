@@ -137,12 +137,14 @@ local function verify_session(key, value)
     return expiry ~= nil and expiry > ngx.time()
 end
 
--- Same-origin only - prevents open redirect via `?next=//evil`.
+-- Same-origin only - prevents open redirect via `?next=//evil`. Backslash
+-- is rejected outright: browsers parse `\` as `/` in a Location header, so
+-- `/\evil` would resolve to `//evil`.
 local function safe_next(value)
     if type(value) ~= "string" then return "/" end
     if value:sub(1, 1) ~= "/" then return "/" end
     if value:sub(1, 2) == "//" then return "/" end
-    if value:find("[%c]") then return "/" end
+    if value:find("[%c\\]") then return "/" end
     return value
 end
 
@@ -300,6 +302,13 @@ end
 
 function _M.guard(opts)
     opts = opts or {}
+
+    -- Strip client-supplied copies of the identity headers a gate in this
+    -- family may forward, so no path through the gate can smuggle them.
+    ngx.req.clear_header("X-Auth-Sub")
+    ngx.req.clear_header("X-Auth-User")
+    ngx.req.clear_header("X-Auth-Email")
+
     local secret_path     = opts.secret_file         or DEFAULT_SECRET_PATH
     local cookie_key_path = opts.cookie_key_file     or DEFAULT_COOKIE_KEY_PATH
     local template_path   = opts.login_template_file  -- nil = baked default

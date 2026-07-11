@@ -18,9 +18,11 @@ services:
       - "80:80"
       - "443:443"
       - "${UI_BIND:-127.0.0.1}:9000:9000"   # UI, localhost-only by default
-      # Reach the UI from the network: set UI_BIND=0.0.0.0 (local HTTP only), or
-      # copy a proxy from /usr/share/lightngx/examples/ into conf.d and publish
-      # its port. See https://buco7854.github.io/lightngx/getting-started
+      # Reach the UI from the network: set UI_BIND=0.0.0.0 (local HTTP only),
+      # or copy a proxy from /usr/share/lightngx/examples/ into conf.d and
+      # uncomment (the HTTP example answers on :9001).
+      # See https://buco7854.github.io/lightngx/light
+      # - "9001:9001"
       # Optional VTS traffic-status page: copy conf.d/20-vhost-traffic-status.conf
       # into your config, then uncomment to reach it at 127.0.0.1:9113/status.
       # - "127.0.0.1:9113:9113"

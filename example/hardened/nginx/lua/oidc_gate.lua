@@ -312,6 +312,14 @@ end
 function _M.guard(opts)
     opts = opts or {}
 
+    -- Strip client-supplied copies of the identity headers before any of
+    -- the early returns below (IP/path whitelist, TOTP fallback session):
+    -- every request that reaches the upstream must carry only headers this
+    -- gate set itself.
+    ngx.req.clear_header("X-Auth-Sub")
+    ngx.req.clear_header("X-Auth-User")
+    ngx.req.clear_header("X-Auth-Email")
+
     if ip_allowed(ngx.var.remote_addr, opts)             then return end
     if path_in_list(ngx.var.uri, opts.whitelist_paths)   then return end
 

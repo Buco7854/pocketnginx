@@ -3,6 +3,12 @@
 # drop-in hooks, then hand over to lightngx (which supervises nginx).
 set -eu
 
+# One-shot subcommands (docker run --rm -i <image> hash) skip the
+# container preparation: no seeding, no chown, no output but their own.
+case "${1:-}" in
+    hash|health|version|-v|--version) exec /usr/local/bin/lightngx "$@" ;;
+esac
+
 # Seed /etc/nginx from the image template when the (usually bind-mounted)
 # directory is empty. An existing config is never touched.
 if [ -z "$(ls -A /etc/nginx 2>/dev/null)" ]; then
@@ -14,7 +20,7 @@ fi
 # Hint at how to expose it (full guide in the docs) until something does.
 if ! grep -RqsF ':9000' \
         /etc/nginx/conf.d /etc/nginx/sites-available /etc/nginx/streams-available 2>/dev/null; then
-    echo "[lightngx] UI is localhost-only (127.0.0.1:9000). To expose it, set UI_BIND=0.0.0.0 or copy an example from /usr/share/lightngx/examples/ into conf.d. See https://buco7854.github.io/lightngx/getting-started" >&2
+    echo "[lightngx] UI is localhost-only (127.0.0.1:9000). To expose it, set UI_BIND=0.0.0.0 or copy an example from /usr/share/lightngx/examples/ into conf.d. See https://buco7854.github.io/lightngx/light" >&2
 fi
 
 # Own the whole nginx config as the worker user, so the unprivileged workers can
@@ -52,8 +58,8 @@ fi
 # rebasing images that add integrations (crowdsec, vts, ...). A failing
 # hook aborts startup so breakage is loud, not silent.
 if [ -d /docker-entrypoint.d ]; then
-    for hook in $(find /docker-entrypoint.d -maxdepth 1 -name '*.sh' -type f | sort); do
-        if [ -x "$hook" ]; then
+    for hook in /docker-entrypoint.d/*.sh; do
+        if [ -f "$hook" ] && [ -x "$hook" ]; then
             echo "[lightngx] running hook $hook"
             "$hook"
         fi

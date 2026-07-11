@@ -17,9 +17,11 @@ services:
       - "80:80"
       - "443:443"
       - "${UI_BIND:-127.0.0.1}:9000:9000"   # UI, localhost-only by default
-      # Reach the UI from the network: set UI_BIND=0.0.0.0 (local HTTP only), or
-      # copy a proxy from /usr/share/lightngx/examples/ into conf.d and publish
-      # its port. See https://buco7854.github.io/lightngx/getting-started
+      # Reach the UI from the network: set UI_BIND=0.0.0.0 (local HTTP only),
+      # or copy a proxy from /usr/share/lightngx/examples/ into conf.d and
+      # uncomment (the HTTP example answers on :9001).
+      # See https://buco7854.github.io/lightngx/light
+      # - "9001:9001"
     volumes:
       - "./nginx/conf:/etc/nginx"       # your whole nginx config; seeded if empty
       - "./nginx/logs:/var/log/nginx"

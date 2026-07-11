@@ -4,5 +4,6 @@ node_modules
 web/app/node_modules
 web/dist
 *.md
+docs
 example
 .github

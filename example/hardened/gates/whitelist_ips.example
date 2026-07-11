@@ -3,9 +3,8 @@
 # One CIDR per line, # comments, blank lines OK. Per-worker cached;
 # `nginx -s reload` to pick up changes.
 #
-# Copy to gates/whitelist_ips (mounted at /etc/nginx/gates/whitelist_ips in the
-# container; uncomment its mount in docker-compose.yml) and edit for your
-# environment.
+# Copy to nginx/conf/gates/whitelist_ips (inside the seeded config dir, which
+# is /etc/nginx in the container) and edit for your environment.
 
 127.0.0.0/8
 10.0.0.0/8

@@ -22,9 +22,16 @@ export default function LogsView({ onAuthLost }: { onAuthLost: () => void }) {
   const [atEnd, setAtEnd] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [live, setLive] = useState(true);
+  const [filesLoaded, setFilesLoaded] = useState(false);
   const viewRef = useRef<HTMLDivElement>(null);
   const stickBottom = useRef(true);
   const esRef = useRef<EventSource | null>(null);
+  // Bumped on every initial load so a stale response (e.g. the pre-file-list
+  // probe of a .gz deep link, or a rapid file switch) cannot clobber the view.
+  const loadGen = useRef(0);
+  // Size probed by loadInitial, consumed by the first stream after it so no
+  // line written between the probe and the stream start is lost.
+  const streamFrom = useRef<number | null>(null);
 
   useEffect(() => {
     api
@@ -40,7 +47,8 @@ export default function LogsView({ onAuthLost }: { onAuthLost: () => void }) {
       .catch((err) => {
         if (err instanceof ApiError && err.status === 401) onAuthLost();
         else toast(t.loadError, "error");
-      });
+      })
+      .finally(() => setFilesLoaded(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -50,9 +58,12 @@ export default function LogsView({ onAuthLost }: { onAuthLost: () => void }) {
   // .gz files have no tail to follow, so they load a page right away.
   const loadInitial = useCallback(
     async (path: string, gz: boolean) => {
+      const gen = ++loadGen.current;
       setLoaded(false);
       try {
         const chunk = await api.logRead(path, 0, gz ? PAGE_BYTES : 1);
+        if (gen !== loadGen.current) return;
+        streamFrom.current = gz ? null : chunk.size;
         setLines(gz ? chunk.lines : []);
         setOffset(gz ? chunk.offset : chunk.size);
         setAtEnd(gz ? chunk.atEnd : chunk.size === 0);
@@ -62,6 +73,7 @@ export default function LogsView({ onAuthLost }: { onAuthLost: () => void }) {
           viewRef.current?.scrollTo({ top: viewRef.current.scrollHeight });
         });
       } catch (err) {
+        if (gen !== loadGen.current) return;
         if (err instanceof ApiError && err.status === 401) onAuthLost();
         else toast(err instanceof ApiError ? err.message : t.loadError, "error");
       }
@@ -70,21 +82,26 @@ export default function LogsView({ onAuthLost }: { onAuthLost: () => void }) {
   );
 
   useEffect(() => {
-    if (selected) loadInitial(selected, isGz);
+    // Wait for the file list so a deep-linked .gz is known as such before
+    // its first load.
+    if (selected && filesLoaded) loadInitial(selected, isGz);
     // loadInitial's identity must not reset the view on unrelated re-renders.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, isGz]);
+  }, [selected, isGz, filesLoaded]);
 
-  // Live follow over SSE. With no `from`, the server starts the stream at the
-  // current end of file, so enabling follow — including after pausing and
-  // clearing — shows only new lines instead of replaying what was written
-  // while it was off. Gated on `loaded` so loadInitial cannot clear the view
-  // after the first streamed lines arrive.
+  // Live follow over SSE. The stream right after an initial load resumes at
+  // the probed size (no gap with the buffer); any later one starts at the
+  // current end of file, so re-enabling follow after pausing and clearing
+  // shows only new lines instead of replaying what was written while it was
+  // off. Gated on `loaded` so loadInitial cannot clear the view after the
+  // first streamed lines arrive.
   useEffect(() => {
+    const from = streamFrom.current;
+    streamFrom.current = null;
     esRef.current?.close();
     esRef.current = null;
     if (!selected || !live || isGz || !loaded) return;
-    const es = new EventSource(api.logStreamURL(selected));
+    const es = new EventSource(api.logStreamURL(selected, from ?? undefined));
     es.onmessage = (ev) => {
       const line = JSON.parse(ev.data) as string;
       setLines((prev) => {

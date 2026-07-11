@@ -22,6 +22,9 @@ services:
       # shortcut past the gate, copy examples/ui-proxy.conf into conf.d (:9001)
       # and uncomment:
       # - "9001:9001"
+      # Optional VTS traffic-status page: copy conf.d/20-vhost-traffic-status.conf
+      # into your config, then uncomment to reach it at 127.0.0.1:9113/status.
+      # - "127.0.0.1:9113:9113"
     volumes:
       - "./nginx/conf:/etc/nginx"       # your whole nginx config; seeded if empty
       - "./nginx/logs:/var/log/nginx"   # shared with CrowdSec

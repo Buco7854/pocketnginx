@@ -24,12 +24,18 @@ type Controller struct {
 	conf    string
 	pidFile string
 
+	// op serializes reload, restart and shutdown: without it two
+	// concurrent restarts interleave their stop/start pairs and leave an
+	// orphaned master fighting the tracked one for the listen sockets.
+	op sync.Mutex
+
 	mu         sync.Mutex
 	supervise  bool
 	logrotate  bool
 	child      *exec.Cmd
 	childDone  chan struct{}
 	stopping   bool
+	shutdown   bool
 	shutdownCh chan struct{}
 }
 
@@ -97,6 +103,8 @@ func (c *Controller) Running() bool {
 
 // Reload sends SIGHUP to the nginx master after a successful config test.
 func (c *Controller) Reload(ctx context.Context) (string, error) {
+	c.op.Lock()
+	defer c.op.Unlock()
 	out, err := c.Test(ctx)
 	if err != nil {
 		return out, fmt.Errorf("config test failed, reload aborted")
@@ -115,6 +123,8 @@ func (c *Controller) Reload(ctx context.Context) (string, error) {
 // respawned; in external mode the master gets SIGQUIT and the external
 // supervisor is expected to bring it back.
 func (c *Controller) Restart(ctx context.Context) (string, error) {
+	c.op.Lock()
+	defer c.op.Unlock()
 	out, err := c.Test(ctx)
 	if err != nil {
 		return out, fmt.Errorf("config test failed, restart aborted")
@@ -187,6 +197,11 @@ func (c *Controller) logrotateLoop() {
 func (c *Controller) startChild() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.shutdown {
+		// A respawn racing Shutdown would leave an unsupervised nginx
+		// running after lightngx exits.
+		return errors.New("shutting down")
+	}
 	cmd := exec.Command(c.bin, "-c", c.conf, "-g", "daemon off;")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -281,11 +296,14 @@ func (c *Controller) superviseLoop() {
 
 // Shutdown gracefully stops the supervised nginx (no-op in external mode).
 func (c *Controller) Shutdown() {
-	close(c.shutdownCh)
 	c.mu.Lock()
+	c.shutdown = true
 	supervise := c.supervise
 	c.mu.Unlock()
+	close(c.shutdownCh)
 	if supervise {
+		c.op.Lock()
+		defer c.op.Unlock()
 		_ = c.stopChild(20 * time.Second)
 	}
 }

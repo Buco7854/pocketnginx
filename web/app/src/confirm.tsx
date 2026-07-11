@@ -86,7 +86,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     if (!confirmP) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") closeConfirm(false);
-      if (e.key === "Enter") closeConfirm(true);
+      // With a button focused (Cancel has autoFocus), Enter must activate
+      // that button, not blanket-confirm a possibly destructive dialog.
+      if (e.key === "Enter" && !(document.activeElement instanceof HTMLButtonElement)) {
+        closeConfirm(true);
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
