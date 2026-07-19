@@ -137,6 +137,35 @@ body {
   font-size: 14px;
 }
 
+/* CodeMirror's base theme hardcodes a white .cm-textfield background
+   (it has no registered dark theme here), so in dark mode the search
+   panel showed near-white text on a white input. !important because
+   the base theme is injected after this sheet. */
+.editor-host .cm-panels .cm-textfield {
+  background-color: var(--color-panel) !important;
+  color: var(--color-fg) !important;
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+}
+
+.editor-host .cm-panels .cm-textfield:focus {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 60%, transparent);
+  outline-offset: -1px;
+}
+
+.editor-host .cm-panels .cm-button {
+  background-color: var(--color-ctrl) !important;
+  background-image: none !important;
+  color: var(--color-fg) !important;
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.editor-host .cm-panels .cm-button:hover {
+  background-color: var(--color-ctrl-hi) !important;
+}
+
 .editor-host .cm-searchMatch {
   background: color-mix(in srgb, var(--color-warn) 35%, transparent);
 }

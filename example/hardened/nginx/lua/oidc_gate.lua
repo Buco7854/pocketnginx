@@ -195,22 +195,25 @@ local DEFAULT_FALLBACK_NOTICE =
     "while this authentication method is confirmed."
 
 -- Add a notice to the TOTP page so users see WHY they're being
--- asked for a code. Also propagates whitelist_ips_file from the
--- parent opts (so the shared file applies to both gates without
--- duplicating it in totp_fallback). Shallow-copy so we don't mutate
--- the user's snippet table.
+-- asked for a code. Also propagates whitelist_ips_file and
+-- totp_login_template_file (as totp_gate's login_template_file) from
+-- the parent opts, so neither needs duplicating in totp_fallback.
+-- An explicit totp_fallback.login_template_file still wins.
+-- Shallow-copy so we don't mutate the user's snippet table.
 local function fall_back_to_totp(opts, reason)
     ngx.log(ngx.WARN, "oidc_gate: TOTP fallback engaged (", reason, ")")
     local totp_opts = opts.totp_fallback
     local merged = { notice = DEFAULT_FALLBACK_NOTICE,
                      notice_kind = "fallback-oidc",
-                     whitelist_ips_file = opts.whitelist_ips_file }
+                     whitelist_ips_file = opts.whitelist_ips_file,
+                     login_template_file = opts.totp_login_template_file }
     for k, v in pairs(totp_opts) do
         if merged[k] == nil then merged[k] = v end
     end
-    if totp_opts.notice             then merged.notice             = totp_opts.notice             end
-    if totp_opts.notice_kind        then merged.notice_kind        = totp_opts.notice_kind        end
-    if totp_opts.whitelist_ips_file then merged.whitelist_ips_file = totp_opts.whitelist_ips_file end
+    if totp_opts.notice              then merged.notice              = totp_opts.notice              end
+    if totp_opts.notice_kind         then merged.notice_kind         = totp_opts.notice_kind         end
+    if totp_opts.whitelist_ips_file  then merged.whitelist_ips_file  = totp_opts.whitelist_ips_file  end
+    if totp_opts.login_template_file then merged.login_template_file = totp_opts.login_template_file end
     return require("totp_gate").guard(merged)
 end
 

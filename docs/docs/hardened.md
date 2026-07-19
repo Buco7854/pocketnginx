@@ -268,7 +268,10 @@ Neither is required: leave the setting unset and the built-in page is used.
 - **TOTP login page.** The TOTP gate ships a baked-in login page. To use your
   own, save it to `nginx/conf/templates/totp-login.html` and point the snippet at
   it: uncomment `login_template_file = "/etc/nginx/templates/totp-login.html"` in
-  `snippets/totp-gate.conf` (or in `oidc-gate.conf`'s fallback block). The
+  `snippets/totp-gate.conf`, or, for the OIDC gate's TOTP fallback, uncomment
+  `totp_login_template_file = "/etc/nginx/templates/totp-login.html"` in
+  `snippets/oidc-gate.conf` (setting `login_template_file` inside its
+  `totp_fallback` block works too, and wins if both are set). The
   template must keep the `__ACTION__` placeholder; a missing, empty or malformed
   file silently falls back to the baked default, so a typo can never lock you
   out.
