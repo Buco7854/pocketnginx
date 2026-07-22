@@ -283,6 +283,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ name, newName }),
     }),
+  vhostClone: (kind: VhostKind, name: string, newName: string) =>
+    request<ActionResult>(`/api/vhosts/${kind}/clone`, {
+      method: "POST",
+      body: JSON.stringify({ name, newName }),
+    }),
   renameFile: (from: string, to: string) =>
     request<ActionResult>("/api/config/rename", {
       method: "POST",

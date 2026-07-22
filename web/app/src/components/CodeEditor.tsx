@@ -69,6 +69,20 @@ const nginxMode = {
 // listener doesn't report them as user edits and spuriously mark dirty.
 const External = Annotation.define<boolean>();
 
+// Mobile browsers run their "Select all" menu action against the DOM, which
+// only holds the rendered viewport, so on a file taller than the screen it
+// stops at the visible edge. Detect that clamped selection and extend it to
+// the whole document.
+const promoteSelectAll = EditorView.updateListener.of((u) => {
+  if (!u.selectionSet || u.docChanged || u.state.selection.ranges.length !== 1) return;
+  const sel = u.state.selection.main;
+  const { from, to } = u.view.viewport;
+  const full = u.state.doc.length;
+  if (!sel.empty && (from > 0 || to < full) && sel.from === from && sel.to === to) {
+    queueMicrotask(() => u.view.dispatch({ selection: { anchor: 0, head: full }, userEvent: "select" }));
+  }
+});
+
 // Two token palettes referencing the app theme through CSS variables is
 // not possible for all tags, so use explicit colors per theme.
 const lightHighlight = HighlightStyle.define([
@@ -143,6 +157,7 @@ export default function CodeEditor({
           if (u.docChanged && !u.transactions.some((tr) => tr.annotation(External)))
             onChangeRef.current(u.state.doc.toString());
         }),
+        promoteSelectAll,
         EditorView.lineWrapping,
       ],
     });

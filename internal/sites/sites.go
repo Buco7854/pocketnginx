@@ -307,6 +307,36 @@ func (m *Manager) Rename(name, newName string) (func() error, error) {
 	}, nil
 }
 
+// Clone copies an available vhost to a new name. The copy is created
+// disabled (no sites-enabled symlink) so it has no effect on the running
+// config until it is enabled.
+func (m *Manager) Clone(name, newName string) error {
+	if err := m.validName(name); err != nil {
+		return err
+	}
+	if err := m.validName(newName); err != nil {
+		return err
+	}
+	src := filepath.Join(m.available, name)
+	content, err := os.ReadFile(src)
+	if err != nil {
+		return ErrNotFound
+	}
+	dst := filepath.Join(m.available, newName)
+	if _, err := os.Lstat(dst); err == nil {
+		return ErrExists
+	}
+	var mode os.FileMode = 0o644
+	if fi, err := os.Stat(src); err == nil {
+		mode = fi.Mode().Perm()
+	}
+	if err := os.WriteFile(dst, content, mode); err != nil {
+		return err
+	}
+	fsown.Chown(dst)
+	return nil
+}
+
 // Delete removes a vhost from the available directory (plus its enabled
 // symlink and any generated maintenance vhost) and returns a restore
 // function.

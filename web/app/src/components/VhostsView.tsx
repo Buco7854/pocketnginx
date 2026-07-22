@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError, type Site, type SiteAction, type VhostKind } from "../api";
 import { type ConfirmOptions, useConfirm, usePrompt } from "../confirm";
-import { BackIcon, PencilIcon, PlusIcon, TrashIcon, WrenchIcon } from "../icons";
+import { BackIcon, CopyIcon, PencilIcon, PlusIcon, TrashIcon, WrenchIcon } from "../icons";
 import { useI18n } from "../i18n";
 import { setQuery, useLocation } from "../router";
 import { useToast } from "../toast";
@@ -164,6 +164,24 @@ export default function VhostsView({
     }
   }
 
+  async function cloneSite(name: string) {
+    const newName = await askName({
+      title: t.clone,
+      label: t.clonePrompt,
+      initial: `${name}-copy`,
+      confirmLabel: t.clone,
+    });
+    if (!newName) return;
+    try {
+      await api.vhostClone(kind, name, newName.trim());
+      toast(t.cloned);
+      refresh();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : t.actionFailed, "error");
+      if (err instanceof ApiError && err.output) output(t.output, err.output);
+    }
+  }
+
   if (editing !== null) {
     const site = sites?.find((s) => s.name === editing) ?? null;
     return (
@@ -244,6 +262,17 @@ export default function VhostsView({
       }
     />
   );
+  const cloneBtn = (s: Site) => (
+    <Btn
+      variant="ghost"
+      className="min-h-[30px] px-2"
+      aria-label={`${t.clone} ${s.name}`}
+      title={t.clone}
+      onClick={() => void cloneSite(s.name)}
+    >
+      <CopyIcon size={15} />
+    </Btn>
+  );
   const deleteBtn = (s: Site) => (
     <Btn
       variant="danger"
@@ -320,8 +349,8 @@ export default function VhostsView({
               className="hidden overflow-hidden rounded-lg bg-panel min-[761px]:grid"
               style={{
                 gridTemplateColumns: maintenanceOK
-                  ? "2.75rem minmax(7rem,max-content) minmax(0,1fr) 6.5rem 5rem 3.25rem"
-                  : "2.75rem minmax(7rem,max-content) minmax(0,1fr) 5rem 3.25rem",
+                  ? "2.75rem minmax(7rem,max-content) minmax(0,1fr) 6.5rem 5rem 5.5rem"
+                  : "2.75rem minmax(7rem,max-content) minmax(0,1fr) 5rem 5.5rem",
               }}
             >
               <div className="col-span-full grid grid-cols-subgrid items-center border-b border-line px-3 py-2 text-[11px] font-medium tracking-wide text-dim uppercase">
@@ -371,7 +400,8 @@ export default function VhostsView({
                     <span className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
                       {rowBusy ? <Spinner /> : enabledSwitch(s)}
                     </span>
-                    <span className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                    <span className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      {cloneBtn(s)}
                       {deleteBtn(s)}
                     </span>
                   </div>
@@ -380,7 +410,18 @@ export default function VhostsView({
             </div>
 
             {/* Mobile: cards */}
-            <div className="flex flex-col gap-2 min-[761px]:hidden">
+            <div className="min-[761px]:hidden">
+              <label className="mb-2 flex w-fit items-center gap-2 px-1 py-1">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  aria-label={t.selectAll}
+                  className="h-3.5 w-3.5 shrink-0 accent-accent"
+                />
+                <span className="text-xs text-dim">{t.selectAll}</span>
+              </label>
+              <div className="flex flex-col gap-2">
               {shown.map((s) => {
                 const rowBusy = busy.split("\n").includes(s.name);
                 return (
@@ -426,13 +467,15 @@ export default function VhostsView({
                         {t.colEnabled}
                         {rowBusy ? <Spinner /> : enabledSwitch(s)}
                       </span>
-                      <span className="ml-auto flex items-center" onClick={(e) => e.stopPropagation()}>
+                      <span className="ml-auto flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        {cloneBtn(s)}
                         {deleteBtn(s)}
                       </span>
                     </div>
                   </div>
                 );
               })}
+              </div>
             </div>
           </div>
         )}
@@ -498,6 +541,25 @@ function VhostEditor({
     }
   }
 
+  async function clone() {
+    const newName = await askName({
+      title: t.clone,
+      label: t.clonePrompt,
+      initial: `${name}-copy`,
+      confirmLabel: t.clone,
+    });
+    if (!newName) return;
+    if (file.dirty && !(await file.confirmDiscard())) return;
+    try {
+      await api.vhostClone(kind, name, newName.trim());
+      toast(t.cloned);
+      onRenamed(newName.trim());
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : t.actionFailed, "error");
+      if (err instanceof ApiError && err.output) output(t.output, err.output);
+    }
+  }
+
   async function del() {
     if (await runAction([name], "delete")) onBack();
   }
@@ -548,6 +610,9 @@ function VhostEditor({
       )}
       <Btn className="min-h-[36px] justify-start text-[13px] max-[760px]:justify-center" onClick={rename}>
         <PencilIcon size={14} /> {t.rename}
+      </Btn>
+      <Btn className="min-h-[36px] justify-start text-[13px] max-[760px]:justify-center" onClick={clone}>
+        <CopyIcon size={14} /> {t.clone}
       </Btn>
       <Btn
         variant="danger"

@@ -225,6 +225,35 @@ func TestRename(t *testing.T) {
 	}
 }
 
+func TestClone(t *testing.T) {
+	m, root := setup(t)
+	if _, err := m.Enable("blog"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Clone("blog", "blog-copy"); err != nil {
+		t.Fatal(err)
+	}
+	src, _ := os.ReadFile(filepath.Join(root, "sites-available/blog"))
+	dst, err := os.ReadFile(filepath.Join(root, "sites-available/blog-copy"))
+	if err != nil || string(src) != string(dst) {
+		t.Fatalf("clone content mismatch err=%v", err)
+	}
+	// Clone is disabled: no sites-enabled symlink.
+	if _, err := os.Lstat(filepath.Join(root, "sites-enabled/blog-copy")); !os.IsNotExist(err) {
+		t.Fatal("clone should not be enabled")
+	}
+	if list, _ := m.List(); len(list) != 2 {
+		t.Fatalf("want 2 sites after clone, got %d", len(list))
+	}
+	// Refuse an existing target and a missing source.
+	if err := m.Clone("blog", "blog-copy"); err != ErrExists {
+		t.Fatalf("want ErrExists, got %v", err)
+	}
+	if err := m.Clone("nope", "x"); err != ErrNotFound {
+		t.Fatalf("want ErrNotFound, got %v", err)
+	}
+}
+
 func TestVhostDelete(t *testing.T) {
 	m, root := setup(t)
 	if _, err := m.Enable("blog"); err != nil {

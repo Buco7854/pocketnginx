@@ -133,6 +133,7 @@ func (s *Server) Handler() http.Handler {
 	api.HandleFunc("GET /api/vhosts/{kind}", s.handleVhostList)
 	api.HandleFunc("POST /api/vhosts/{kind}/action", s.handleVhostAction)
 	api.HandleFunc("POST /api/vhosts/{kind}/rename", s.handleVhostRename)
+	api.HandleFunc("POST /api/vhosts/{kind}/clone", s.handleVhostClone)
 	api.HandleFunc("GET /api/logs", s.handleLogList)
 	api.HandleFunc("GET /api/logs/read", s.handleLogRead)
 	api.HandleFunc("GET /api/logs/stream", s.handleLogStream)

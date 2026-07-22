@@ -180,6 +180,31 @@ func (s *Server) handleVhostRename(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"status": "renamed", "output": out, "reloaded": true})
 }
 
+// handleVhostClone copies a vhost to a new name. The copy is disabled, so
+// it does not touch the running config and needs no test or reload.
+func (s *Server) handleVhostClone(w http.ResponseWriter, r *http.Request) {
+	mgr, _ := s.vhostKind(r.PathValue("kind"))
+	if mgr == nil || !mgr.Ready() {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not available"})
+		return
+	}
+	var req struct {
+		Name    string `json:"name"`
+		NewName string `json:"newName"`
+	}
+	if !readJSON(w, r, &req, 4096) {
+		return
+	}
+	s.mutate.Lock()
+	defer s.mutate.Unlock()
+	if err := mgr.Clone(req.Name, req.NewName); err != nil {
+		writeJSON(w, siteStatusFor(err), map[string]string{"error": err.Error()})
+		return
+	}
+	s.audit(r, "vhost.cloned", "from", req.Name, "to", req.NewName)
+	writeJSON(w, http.StatusOK, map[string]any{"status": "cloned"})
+}
+
 func siteStatusFor(err error) int {
 	switch {
 	case errors.Is(err, sites.ErrNotFound):
